@@ -268,6 +268,7 @@ class WaferQCPipeline:
         visuals = self.generate_visual_diagnostics(raw_img, deartifacted, reported_class, bbox, area_px)
 
         # Step 8: SQLite Audit Logging
+        img_hash = self.audit_logger.compute_sha256(image_path)
         event_id = self.audit_logger.log_event(
             image_path=image_path,
             predicted_class=reported_class,
@@ -284,6 +285,7 @@ class WaferQCPipeline:
 
         return {
             "event_id": event_id,
+            "image_hash": img_hash,
             "image_path": image_path,
             "predicted_class": reported_class,
             "raw_class": pred_class,

@@ -217,35 +217,38 @@
             </div>
 
             <!-- Viewport 1 Display Canvas -->
-            <div class="viewport-box aspect-square flex items-center justify-center">
-              <img id="img-input-raw" src="/outputs/test_bridge.png" alt="Input SEM Crop" class="viewport-img" onerror="this.src='/outputs/confusion_matrix.png'"/>
-              <!-- Crosshair Overlay Grid (Subtle) -->
-              <div class="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:32px_32px]"></div>
+            <div class="viewport-box aspect-square flex items-center justify-center bg-[#020507]">
+              <img id="img-input-raw" src="" alt="Load an SEM crop to begin" class="viewport-img hidden"/>
+              <!-- Placeholder when no image loaded -->
+              <div id="placeholder-input" class="flex flex-col items-center justify-center gap-3 text-center p-8">
+                <svg class="w-12 h-12 text-slate-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"/></svg>
+                <span class="text-sm text-slate-500 font-mono">No SEM image loaded</span>
+                <span class="text-xs text-slate-600">Use <strong>Browse SEM Scan</strong> or <strong>Load Test Sample</strong> below, then click <strong>RUN PIPELINE</strong></span>
+              </div>
             </div>
           </div>
 
           <!-- Interactive Action Controls Below Input Viewport -->
           <div class="pt-4 mt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div class="flex items-center gap-2">
-              <!-- Browse / Upload SEM Scan -->
-              <input type="file" id="file-upload" accept="image/png,image/jpeg" class="hidden" onchange="handleFileUpload(event)"/>
+              <!-- Browse / Upload SEM Scan (Preview Only) -->
+              <input type="file" id="file-upload" accept="image/png,image/jpeg" class="hidden" onchange="previewUploadedFile(event)"/>
               <button onclick="document.getElementById('file-upload').click()" class="px-3.5 py-1.5 rounded-lg glass-pill hover:bg-white/10 text-slate-200 font-medium flex items-center gap-1.5 transition-all">
                 <svg class="w-4 h-4 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                 <span>Browse SEM Scan</span>
               </button>
               
-              <!-- Random Test Case -->
-              <button onclick="fetchRandomSample()" class="px-3.5 py-1.5 rounded-lg glass-pill hover:bg-white/10 text-tealAccent font-medium flex items-center gap-1.5 transition-all">
+              <!-- Load a random test image for preview -->
+              <button onclick="loadTestSamplePreview()" class="px-3.5 py-1.5 rounded-lg glass-pill hover:bg-white/10 text-tealAccent font-medium flex items-center gap-1.5 transition-all">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                <span>Random Test Sample</span>
+                <span>Load Test Sample</span>
               </button>
             </div>
 
-            <!-- Quick Class Select Dropdown -->
+            <!-- Defect Class Filter for Test Samples -->
             <div class="flex items-center gap-2 text-slate-400 font-mono text-[11px]">
-              <span>Filter:</span>
-              <select id="select-class-filter" onchange="fetchRandomSample(this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-md px-2 py-1 outline-none">
-                <option value="">Any Defect Type</option>
+              <span>Test class:</span>
+              <select id="select-class-filter" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-md px-2 py-1 outline-none">
                 <option value="bridge">Bridge (Short)</option>
                 <option value="particle">Particle (Contaminant)</option>
                 <option value="scratch">Scratch (Gouge)</option>
@@ -253,6 +256,11 @@
                 <option value="nuisance_charging">Nuisance (Charging)</option>
                 <option value="nuisance_jitter">Nuisance (Scan Jitter)</option>
               </select>
+            </div>
+
+            <!-- Status indicator -->
+            <div id="status-indicator" class="text-[11px] font-mono text-slate-500 italic">
+              Awaiting image input...
             </div>
           </div>
         </div>
@@ -285,8 +293,14 @@
             </div>
 
             <!-- Viewport 2 Display Canvas -->
-            <div class="viewport-box aspect-square flex items-center justify-center">
-              <img id="img-output-diagnostic" src="/outputs/test_bridge.png" alt="Diagnostic Output" class="viewport-img"/>
+            <div class="viewport-box aspect-square flex items-center justify-center bg-[#020507]">
+              <img id="img-output-diagnostic" src="" alt="Diagnostic Output" class="viewport-img hidden"/>
+              <!-- Placeholder when no results yet -->
+              <div id="placeholder-output" class="flex flex-col items-center justify-center gap-3 text-center p-8">
+                <svg class="w-12 h-12 text-slate-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                <span class="text-sm text-slate-500 font-mono">Pipeline output</span>
+                <span class="text-xs text-slate-600">Defect overlay, heatmap, and Sobel gradient appear here after <strong>RUN PIPELINE</strong></span>
+              </div>
               <!-- Active Mode Watermark Pill -->
               <div id="mode-watermark" class="absolute top-3 right-3 px-2 py-0.5 rounded bg-black/75 border border-white/20 text-[10px] font-mono tracking-wider text-slate-300">
                 MODE: DEFECT OVERLAY (EXACT BOUNDING)
@@ -309,28 +323,28 @@
       <!-- ===================================================================== -->
       <!-- PROMINENT CENTER-STAGE DEFECT IDENTIFICATION & SEVERITY BANNER        -->
       <!-- ===================================================================== -->
-      <div class="glass-card p-5 border-l-4 border-scrapCrimson" id="banner-defect-card">
+      <div class="glass-card p-5 border-l-4 border-slate-700" id="banner-defect-card">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <!-- Classification Callout -->
           <div class="space-y-1">
             <div class="flex items-center gap-2">
               <span class="text-xs uppercase font-mono tracking-wider text-slate-400">AUTOMATED REAL-TIME INLINE DEFECT IDENTIFICATION:</span>
-              <span id="badge-disposition" class="px-2 py-0.5 rounded text-xs font-bold font-mono bg-scrapCrimson/20 text-scrapCrimson border border-scrapCrimson/40">
-                SCRAP
+              <span id="badge-disposition" class="px-2 py-0.5 rounded text-xs font-bold font-mono bg-slate-700/40 text-slate-400 border border-slate-600">
+                AWAITING
               </span>
-              <span id="badge-override" class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-red-950 text-red-300 border border-red-700">
+              <span id="badge-override" class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-red-950 text-red-300 border border-red-700" style="display:none">
                 CRITICAL OVERRIDE (p ≥ 0.70)
               </span>
             </div>
             <div class="flex items-baseline gap-3">
-              <h2 id="text-predicted-class" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-mono">
-                BRIDGE <span class="text-base font-normal text-slate-400 font-sans">(Conductive Short Circuit)</span>
+              <h2 id="text-predicted-class" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-500 font-mono">
+                — <span class="text-base font-normal text-slate-600 font-sans">(Load an image and click RUN PIPELINE)</span>
               </h2>
-              <span class="text-sm font-mono text-tealAccent">Confidence: <strong id="text-confidence" class="text-lg">99.64%</strong></span>
+              <span class="text-sm font-mono text-tealAccent">Confidence: <strong id="text-confidence" class="text-lg">—</strong></span>
             </div>
             <p id="text-defect-details" class="text-xs text-slate-300 font-mono">
-              Exact Bounding Box: <span id="text-bbox" class="text-goldAccent font-semibold">[x1: 76, y1: 113, x2: 86, y2: 143]</span> 
-              • Defect Area: <span id="text-area" class="text-goldAccent font-semibold">167 px² (~134 nm²)</span> 
+              Exact Bounding Box: <span id="text-bbox" class="text-slate-500 font-semibold">[Awaiting inspection]</span> 
+              • Defect Area: <span id="text-area" class="text-slate-500 font-semibold">— px²</span> 
               • Pattern: <span class="text-slate-200">Line/Space 28nm</span>
             </p>
           </div>
@@ -341,10 +355,10 @@
             <div class="bg-black/40 px-4 py-2.5 rounded-xl border border-white/10 min-w-[190px]">
               <div class="flex justify-between text-xs font-mono mb-1">
                 <span class="text-slate-400">KEY DEFECTIVITY (KDI):</span>
-                <span id="text-kdi" class="font-bold text-scrapCrimson">0.948</span>
+                <span id="text-kdi" class="font-bold text-slate-500">—</span>
               </div>
               <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div id="bar-kdi" class="h-full bg-scrapCrimson transition-all" style="width: 94.8%;"></div>
+                <div id="bar-kdi" class="h-full bg-slate-600 transition-all" style="width: 0%;"></div>
               </div>
               <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
                 <span>Pass &lt;0.25</span>
@@ -356,8 +370,8 @@
             <!-- Total Latency -->
             <div class="bg-black/40 px-4 py-2.5 rounded-xl border border-white/10 text-center">
               <span class="text-[10px] uppercase font-mono text-slate-400 block">TOTAL LATENCY</span>
-              <span id="text-total-latency" class="text-lg font-bold text-tealAccent font-mono">43.60 ms</span>
-              <span class="text-[10px] text-slate-500 block font-mono">23.0 FPS CPU</span>
+              <span id="text-total-latency" class="text-lg font-bold text-slate-500 font-mono">— ms</span>
+              <span class="text-[10px] text-slate-500 block font-mono">— FPS</span>
             </div>
           </div>
         </div>
@@ -383,24 +397,22 @@
           <div class="space-y-2 text-xs">
             <div>
               <span class="text-slate-400 font-mono text-[11px] block">CITING FAB STANDARD OPERATING PROCEDURE:</span>
-              <span id="text-adv-sop" class="font-mono text-goldAccent font-semibold text-sm">
-                SOP-LIT-004: Photolithography Bridging & Resist Scumming Review
+              <span id="text-adv-sop" class="font-mono text-slate-400 font-semibold text-sm">
+                — (Awaiting RUN PIPELINE)
               </span>
             </div>
 
             <div>
               <span class="text-slate-400 font-mono text-[11px] block">PHYSICAL ROOT CAUSE ANALYSIS:</span>
-              <p id="text-adv-root-cause" class="text-slate-200 mt-0.5 leading-relaxed">
-                Inter-line conductive bridging detected. High probability of photoresist scumming due to sub-optimal developer agitation, or underexposure during 193nm immersion scanner exposure.
+              <p id="text-adv-root-cause" class="text-slate-400 mt-0.5 leading-relaxed">
+                Failure analysis and SOP citations will generate upon executing RUN PIPELINE.
               </p>
             </div>
 
             <div>
               <span class="text-slate-400 font-mono text-[11px] block">IMMEDIATE FAB CORRECTIVE ACTIONS:</span>
-              <ul id="list-adv-actions" class="list-disc list-inside text-slate-200 space-y-1 mt-0.5">
-                <li>Halt Scanner Track immersion lot #WFR-2026-N28; flag slit-focus calibration.</li>
-                <li>Verify rinse nozzle pressure on Litho Track Module 3; check developer bath temperature (21.0 ± 0.2°C).</li>
-                <li>Route wafer lot to dry strip rework if defect is pre-etch; otherwise designate scrap to avoid lot-wide contamination.</li>
+              <ul id="list-adv-actions" class="list-disc list-inside text-slate-400 space-y-1 mt-0.5">
+                <li>Corrective actions will populate after defect identification.</li>
               </ul>
             </div>
           </div>
@@ -431,14 +443,14 @@
           <div class="grid grid-cols-2 gap-3 text-xs font-mono">
             <div class="bg-black/30 p-2.5 rounded-lg border border-white/5">
               <span class="text-slate-400 text-[10px] block">CRYPTOGRAPHIC SHA-256:</span>
-              <span id="text-audit-hash" class="text-tealAccent text-[11px] truncate block" title="100b1cc2d3f45a6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e">
-                100b1cc2d3f45a6b...
+              <span id="text-audit-hash" class="text-slate-400 text-[11px] truncate block" title="Awaiting pipeline run">
+                —
               </span>
             </div>
             <div class="bg-black/30 p-2.5 rounded-lg border border-white/5">
               <span class="text-slate-400 text-[10px] block">AUDIT EVENT RECORD:</span>
-              <span id="text-audit-id" class="text-slate-200 text-xs font-semibold">
-                Event #82 • Logged &amp; Verified
+              <span id="text-audit-id" class="text-slate-400 text-xs font-semibold">
+                — (Awaiting RUN PIPELINE)
               </span>
             </div>
             <div class="bg-black/30 p-2.5 rounded-lg border border-white/5">
@@ -624,142 +636,223 @@
   <!-- JAVASCRIPT CONTROLLER (Live Data Binding & Interactive View Switching)    -->
   <!-- ========================================================================= -->
   <script>
-    // State
-    let currentVisuals = {
-      raw: '',
-      deartifacted: '',
-      overlay: '',
-      heatmap: '',
-      sobel: ''
-    };
+    // ==================================================================================
+    // STATE
+    // ==================================================================================
+    let currentVisuals = { raw: '', deartifacted: '', overlay: '', heatmap: '', sobel: '' };
     let currentMode = 'overlay';
+    let pendingFile = null;             // File object for uploaded scan
+    let pendingSamplePath = null;       // Server path for loaded test sample
+    let pendingSource = null;           // 'upload' or 'sample'
+    let imageReady = false;             // true when an image is loaded in left viewport
 
-    // Diagnostic Mode Switcher (OVERLAY, HEATMAP, SOBEL, DE-ARTIFACTED)
-    function setDiagnosticMode(mode) {
-      currentMode = mode;
-      const btnIds = {
-        'overlay': 'btn-mode-overlay',
-        'heatmap': 'btn-mode-heatmap',
-        'sobel': 'btn-mode-sobel',
-        'deartifacted': 'btn-mode-deartifacted'
-      };
-
-      // Reset all buttons
-      Object.keys(btnIds).forEach(m => {
-        const btn = document.getElementById(btnIds[m]);
-        if (btn) {
-          if (m === mode) {
-            btn.className = 'mode-btn-active px-2.5 py-1 rounded font-semibold transition-all';
-          } else {
-            btn.className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all';
-          }
-        }
-      });
-
-      // Update image
-      const imgOutput = document.getElementById('img-output-diagnostic');
-      if (imgOutput && currentVisuals[mode]) {
-        imgOutput.src = currentVisuals[mode];
-      }
-
-      // Update watermark
-      const watermark = document.getElementById('mode-watermark');
-      if (watermark) {
-        const labels = {
-          'overlay': 'MODE: DEFECT OVERLAY (EXACT BOUNDING)',
-          'heatmap': 'MODE: DEFECT ANOMALY HEATMAP (JET)',
-          'sobel': 'MODE: SOBEL GRADIENT MAGNITUDE (TURBO)',
-          'deartifacted': 'MODE: AMAT DE-ARTIFACTED CLEAN'
-        };
-        watermark.textContent = labels[mode] || mode.toUpperCase();
-      }
-    }
-
-    // Switch Top Tabs
-    function switchTab(tabId) {
-      ['tab-review', 'tab-sops', 'tab-audit', 'tab-bench'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.toggle('hidden', id !== tabId);
-      });
-
-      const navBtns = {
-        'tab-review': 'nav-btn-review',
-        'tab-sops': 'nav-btn-sops',
-        'tab-audit': 'nav-btn-audit',
-        'tab-bench': 'nav-btn-bench'
-      };
-
-      Object.keys(navBtns).forEach(tId => {
-        const btn = document.getElementById(navBtns[tId]);
-        if (btn) {
-          if (tId === tabId) {
-            btn.className = 'nav-tab-active px-3 py-1.5 rounded-md font-medium border border-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5';
-          } else {
-            btn.className = 'px-3 py-1.5 rounded-md font-medium border border-transparent text-slate-400 hover:text-white transition-all flex items-center gap-1.5';
-          }
-        }
-      });
-
-      if (tabId === 'tab-sops') loadSOPs();
-      if (tabId === 'tab-audit') loadAuditEvents();
-    }
-
-    // Fetch and bind random test sample
-    async function fetchRandomSample(className) {
-      const btn = document.getElementById('btn-run-pipeline');
-      if (btn) btn.innerHTML = '<span>SCANNING...</span>';
-
-      try {
-        const url = className ? `/api/random_sample?class_name=${encodeURIComponent(className)}` : '/api/random_sample';
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        bindInspectionData(data);
-      } catch (err) {
-        console.error('Fetch sample error:', err);
-      } finally {
-        if (btn) btn.innerHTML = '<svg class="w-4 h-4 text-slate-950" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>RUN PIPELINE</span>';
-      }
-    }
-
-    // Handle Upload
-    async function handleFileUpload(evt) {
+    // ==================================================================================
+    // 1. PREVIEW an uploaded file (Loads into Left Viewport, waits for RUN PIPELINE)
+    // ==================================================================================
+    function previewUploadedFile(evt) {
       const file = evt.target.files[0];
       if (!file) return;
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('pattern_type', 'line_space');
+      pendingFile = file;
+      pendingSamplePath = null;
+      pendingSource = 'upload';
+      imageReady = true;
+
+      // Show local preview of the file in the left viewport
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const imgEl = document.getElementById('img-input-raw');
+        imgEl.src = e.target.result;
+        imgEl.classList.remove('hidden');
+        document.getElementById('placeholder-input').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+
+      // Clear right panel and results — wait for RUN PIPELINE
+      clearResults();
+      setStatus('Image loaded: ' + file.name + ' — Click RUN PIPELINE to inspect.');
+    }
+
+    // ==================================================================================
+    // 2. LOAD a test sample from dataset (Loads into Left Viewport, waits for RUN PIPELINE)
+    // ==================================================================================
+    async function loadTestSamplePreview() {
+      const className = document.getElementById('select-class-filter').value || '';
+      setStatus('Fetching ' + (className || 'random') + ' SEM test sample from dataset...');
 
       try {
-        const res = await fetch('/api/inspect', { method: 'POST', body: formData });
-        if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+        const url = '/api/sample_image' + (className ? ('?class_name=' + encodeURIComponent(className)) : '');
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        bindInspectionData(data);
+
+        pendingFile = null;
+        pendingSamplePath = data.image_path;
+        pendingSource = 'sample';
+        imageReady = true;
+
+        // Show sample in left viewport
+        const imgEl = document.getElementById('img-input-raw');
+        imgEl.src = data.raw_base64;
+        imgEl.classList.remove('hidden');
+        document.getElementById('placeholder-input').classList.add('hidden');
+
+        // Clear previous diagnostic results — user must click RUN PIPELINE to analyze
+        clearResults();
+        setStatus('Loaded test sample: ' + data.filename + ' [' + (data.class_name || 'SEM') + '] — Click RUN PIPELINE to inspect.');
       } catch (err) {
-        alert('Inspection failed: ' + err.message);
+        console.error('Load test sample error:', err);
+        setStatus('Error loading test sample: ' + err.message);
       }
     }
 
-    // Bind Data to UI
-    function bindInspectionData(data) {
-      // 1. Store visuals
-      if (data.visuals) {
-        currentVisuals = data.visuals;
-        document.getElementById('img-input-raw').src = currentVisuals.raw;
-        document.getElementById('img-output-diagnostic').src = currentVisuals[currentMode] || currentVisuals.overlay;
+    // ==================================================================================
+    // 3. RUN PIPELINE — Processes the currently loaded image
+    // ==================================================================================
+    async function runPipelineAction() {
+      if (!imageReady || !pendingSource) {
+        setStatus('No image loaded! Please click "Browse SEM Scan" or "Load Test Sample" first.');
+        return;
       }
 
-      // 2. Banner updates
+      const btn = document.getElementById('btn-run-pipeline');
+      const origHTML = btn.innerHTML;
+      btn.innerHTML = '<span class="animate-pulse">⏳ INSPECTING...</span>';
+      btn.disabled = true;
+
+      try {
+        let res = null;
+        if (pendingSource === 'upload' && pendingFile) {
+          setStatus('Processing uploaded SEM crop: ' + pendingFile.name + '...');
+          const formData = new FormData();
+          formData.append('file', pendingFile);
+          formData.append('pattern_type', 'line_space');
+
+          res = await fetch('/api/inspect', { method: 'POST', body: formData });
+        } else if (pendingSource === 'sample' && pendingSamplePath) {
+          setStatus('Executing edge pipeline on test sample: ' + pendingSamplePath.split('/').pop() + '...');
+          const formData = new FormData();
+          formData.append('image_path', pendingSamplePath);
+          formData.append('pattern_type', 'line_space');
+
+          res = await fetch('/api/inspect_sample', { method: 'POST', body: formData });
+        } else {
+          throw new Error('No valid pending image source.');
+        }
+
+        if (!res.ok) throw new Error('Backend returned HTTP ' + res.status);
+        const data = await res.json();
+        bindInspectionData(data);
+        setStatus('Inspection complete: ' + (data.predicted_class || 'UNKNOWN') + ' (' + ((data.confidence || 0) * 100).toFixed(1) + '%) • Disposition: ' + (data.disposition || 'PASS'));
+      } catch (err) {
+        console.error('Pipeline error:', err);
+        setStatus('Pipeline error: ' + err.message);
+      } finally {
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
+      }
+    }
+
+    // ==================================================================================
+    // STATUS HELPER
+    // ==================================================================================
+    function setStatus(msg) {
+      const el = document.getElementById('status-indicator');
+      if (el) el.textContent = msg;
+    }
+
+    // ==================================================================================
+    // CLEAR RESULTS (before new inspection)
+    // ==================================================================================
+    function clearResults() {
+      // Hide right viewport image, show placeholder
+      const imgOut = document.getElementById('img-output-diagnostic');
+      if (imgOut) { imgOut.src = ''; imgOut.classList.add('hidden'); }
+      const phOut = document.getElementById('placeholder-output');
+      if (phOut) phOut.classList.remove('hidden');
+
+      // Reset banner to waiting state
+      document.getElementById('text-predicted-class').innerHTML = '— <span class="text-base font-normal text-slate-600 font-sans">(Awaiting RUN PIPELINE)</span>';
+      document.getElementById('text-predicted-class').className = 'text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-500 font-mono';
+      document.getElementById('text-confidence').textContent = '—';
+      document.getElementById('text-kdi').textContent = '—';
+      document.getElementById('text-kdi').className = 'font-bold text-slate-500';
+      document.getElementById('bar-kdi').style.width = '0%';
+      document.getElementById('bar-kdi').className = 'h-full bg-slate-600 transition-all';
+      document.getElementById('badge-disposition').textContent = 'AWAITING';
+      document.getElementById('badge-disposition').className = 'px-2 py-0.5 rounded text-xs font-bold font-mono bg-slate-700/40 text-slate-400 border border-slate-600';
+      document.getElementById('badge-override').style.display = 'none';
+      document.getElementById('text-bbox').textContent = '[Awaiting inspection]';
+      document.getElementById('text-bbox').className = 'text-slate-500 font-semibold';
+      document.getElementById('text-area').textContent = '— px²';
+      document.getElementById('text-area').className = 'text-slate-500 font-semibold';
+      document.getElementById('text-total-latency').textContent = '— ms';
+      document.getElementById('banner-defect-card').className = 'glass-card p-5 border-l-4 border-slate-700';
+
+      // Reset Advisor & Audit placeholders
+      const sopEl = document.getElementById('text-adv-sop');
+      if (sopEl) sopEl.textContent = '— (Awaiting RUN PIPELINE)';
+      const rcEl = document.getElementById('text-adv-root-cause');
+      if (rcEl) rcEl.textContent = 'Failure analysis and SOP citations will generate upon executing RUN PIPELINE.';
+      const listEl = document.getElementById('list-adv-actions');
+      if (listEl) {
+        listEl.innerHTML = '<li class="text-slate-500">Corrective actions will populate after defect identification.</li>';
+      }
+      const hashEl = document.getElementById('text-audit-hash');
+      if (hashEl) { hashEl.textContent = '—'; hashEl.title = 'Awaiting pipeline run'; }
+      const auditIdEl = document.getElementById('text-audit-id');
+      if (auditIdEl) auditIdEl.textContent = '— (Awaiting RUN PIPELINE)';
+    }
+
+    // ==================================================================================
+    // BIND INSPECTION DATA TO UI (called after backend returns results)
+    // ==================================================================================
+    function bindInspectionData(data) {
+      // 1. Store and display visual diagnostic images
+      if (data.visuals) {
+        currentVisuals = data.visuals;
+
+        // Left viewport: ensure raw input SEM is displayed
+        const imgInput = document.getElementById('img-input-raw');
+        if (currentVisuals.raw) {
+          imgInput.src = currentVisuals.raw;
+          imgInput.classList.remove('hidden');
+          document.getElementById('placeholder-input').classList.add('hidden');
+        }
+
+        // Right viewport: show selected diagnostic mode
+        const imgOutput = document.getElementById('img-output-diagnostic');
+        imgOutput.src = currentVisuals[currentMode] || currentVisuals.overlay;
+        imgOutput.classList.remove('hidden');
+        const phOut = document.getElementById('placeholder-output');
+        if (phOut) phOut.classList.add('hidden');
+      }
+
+      // 2. Classification banner
       const pClass = (data.predicted_class || 'UNKNOWN').toUpperCase();
       const pConf = ((data.confidence || 0) * 100).toFixed(2);
-      const disp = (data.disposition || 'SCRAP').toUpperCase();
+      const disp = (data.disposition || 'PASS').toUpperCase();
       const kdi = Number(data.kdi_score || 0).toFixed(3);
 
-      document.getElementById('text-predicted-class').innerHTML = `${pClass} <span class="text-base font-normal text-slate-400 font-sans">(${getClassDescription(pClass)})</span>`;
-      document.getElementById('text-confidence').textContent = `${pConf}%`;
-      document.getElementById('text-kdi').textContent = kdi;
-      document.getElementById('bar-kdi').style.width = `${Math.min(100, (data.kdi_score || 0) * 100)}%`;
+      document.getElementById('text-predicted-class').innerHTML = pClass + ' <span class="text-base font-normal text-slate-400 font-sans">(' + getClassDescription(pClass) + ')</span>';
+      document.getElementById('text-predicted-class').className = 'text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-mono';
+      document.getElementById('text-confidence').textContent = pConf + '%';
+
+      // KDI score and bar color
+      const kdiEl = document.getElementById('text-kdi');
+      const kdiBar = document.getElementById('bar-kdi');
+      kdiEl.textContent = kdi;
+      kdiBar.style.width = Math.min(100, (data.kdi_score || 0) * 100) + '%';
+      if (disp === 'PASS') {
+        kdiEl.className = 'font-bold text-passEmerald';
+        kdiBar.className = 'h-full bg-passEmerald transition-all';
+      } else if (disp === 'REWORK') {
+        kdiEl.className = 'font-bold text-reworkAmber';
+        kdiBar.className = 'h-full bg-reworkAmber transition-all';
+      } else {
+        kdiEl.className = 'font-bold text-scrapCrimson';
+        kdiBar.className = 'h-full bg-scrapCrimson transition-all';
+      }
 
       // Disposition badge
       const dispBadge = document.getElementById('badge-disposition');
@@ -772,59 +865,185 @@
         dispBadge.className = 'px-2 py-0.5 rounded text-xs font-bold font-mono bg-scrapCrimson/20 text-scrapCrimson border border-scrapCrimson/40';
       }
 
+      // Banner border color
+      const bannerCard = document.getElementById('banner-defect-card');
+      if (disp === 'PASS') {
+        bannerCard.className = 'glass-card p-5 border-l-4 border-passEmerald';
+      } else if (disp === 'REWORK') {
+        bannerCard.className = 'glass-card p-5 border-l-4 border-reworkAmber';
+      } else {
+        bannerCard.className = 'glass-card p-5 border-l-4 border-scrapCrimson';
+      }
+
       // Critical override badge
-      const ovBadge = document.getElementById('badge-override');
-      ovBadge.style.display = data.critical_override ? 'inline-block' : 'none';
+      document.getElementById('badge-override').style.display = data.critical_override ? 'inline-block' : 'none';
 
       // Bounding box & area
+      const bboxEl = document.getElementById('text-bbox');
+      const areaEl = document.getElementById('text-area');
       if (data.bbox) {
-        const [x1, y1, x2, y2] = data.bbox;
-        document.getElementById('text-bbox').textContent = `[x1: ${x1}, y1: ${y1}, x2: ${x2}, y2: ${y2}]`;
+        bboxEl.textContent = '[x1: ' + data.bbox[0] + ', y1: ' + data.bbox[1] + ', x2: ' + data.bbox[2] + ', y2: ' + data.bbox[3] + ']';
+        bboxEl.className = 'text-goldAccent font-semibold';
       } else {
-        document.getElementById('text-bbox').textContent = '[None — Nominal Topography]';
+        bboxEl.textContent = '[None — Nominal Topography]';
+        bboxEl.className = 'text-passEmerald font-semibold';
       }
-      document.getElementById('text-area').textContent = `${data.area_px || 0} px² (~${Math.round((data.area_px || 0) * 0.8)} nm²)`;
+      areaEl.textContent = (data.area_px || 0) + ' px\u00B2 (~' + Math.round((data.area_px || 0) * 0.8) + ' nm\u00B2)';
+      areaEl.className = 'text-goldAccent font-semibold';
 
       // Latency breakdown
-      const totalMs = data.timing_ms ? data.timing_ms.total : 43.60;
-      const deartMs = data.timing_ms ? data.timing_ms.deartifacting : 0.84;
-      const clsMs = data.timing_ms ? data.timing_ms.classification : 42.20;
+      const totalMs = data.timing_ms ? data.timing_ms.total : 0;
+      const deartMs = data.timing_ms ? data.timing_ms.deartifacting : 0;
+      const clsMs = data.timing_ms ? data.timing_ms.classification : 0;
 
-      document.getElementById('text-total-latency').textContent = `${totalMs.toFixed(2)} ms`;
-      document.getElementById('text-deart-time').textContent = `${deartMs.toFixed(2)} ms`;
-      document.getElementById('text-cls-time').textContent = `${clsMs.toFixed(2)} ms`;
-      document.getElementById('bar-deart-time').style.width = `${Math.min(100, (deartMs / totalMs) * 100)}%`;
-      document.getElementById('bar-cls-time').style.width = `${Math.min(100, (clsMs / totalMs) * 100)}%`;
-      document.getElementById('stat-latency').textContent = `${totalMs.toFixed(2)} ms // ${(1000 / totalMs).toFixed(1)} FPS`;
+      document.getElementById('text-total-latency').textContent = totalMs.toFixed(2) + ' ms';
+      document.getElementById('text-total-latency').className = 'text-lg font-bold text-tealAccent font-mono';
+      document.getElementById('text-deart-time').textContent = deartMs.toFixed(2) + ' ms';
+      document.getElementById('text-cls-time').textContent = clsMs.toFixed(2) + ' ms';
+      if (totalMs > 0) {
+        document.getElementById('bar-deart-time').style.width = Math.min(100, (deartMs / totalMs) * 100) + '%';
+        document.getElementById('bar-cls-time').style.width = Math.min(100, (clsMs / totalMs) * 100) + '%';
+      }
+      document.getElementById('stat-latency').textContent = totalMs.toFixed(2) + ' ms // ' + (totalMs > 0 ? (1000 / totalMs).toFixed(1) : '—') + ' FPS';
 
       // Audit Record
       if (data.event_id) {
-        document.getElementById('text-audit-id').textContent = `Event #${data.event_id} • Logged & Verified`;
+        document.getElementById('text-audit-id').textContent = 'Event #' + data.event_id + ' \u2022 Logged & Verified';
+      }
+      if (data.image_hash) {
+        const hashEl = document.getElementById('text-audit-hash');
+        if (hashEl) {
+          hashEl.textContent = data.image_hash.substring(0, 16) + '...';
+          hashEl.title = data.image_hash;
+        }
       }
 
-      // Advisor binding
+      // Advisor binding (LLM + Grounded SOP Retrieval)
       if (data.advisor) {
         const adv = data.advisor;
-        if (adv.cited_sops && adv.cited_sops.length > 0) {
-          document.getElementById('text-adv-sop').textContent = adv.cited_sops[0];
+
+        // SOP Citation
+        const sopEl = document.getElementById('text-adv-sop');
+        if (sopEl) {
+          const sids = adv.cited_sop_ids || adv.cited_sops || [];
+          if (sids.length > 0) {
+            sopEl.textContent = sids.join(', ');
+          } else {
+            sopEl.textContent = (disp === 'PASS') ? 'SOP-NOM-01: Nominal Process Verification' : 'Fab Standard Operating Procedure';
+          }
         }
-        if (adv.root_cause) {
-          document.getElementById('text-adv-root-cause').textContent = adv.root_cause;
+
+        // Root Cause Hypothesis
+        const rcEl = document.getElementById('text-adv-root-cause');
+        if (rcEl) {
+          rcEl.textContent = adv.root_cause_hypothesis || adv.root_cause || adv.analysis || 'Analysis verified against baseline fab specification.';
         }
-        if (adv.corrective_actions && Array.isArray(adv.corrective_actions)) {
-          const listEl = document.getElementById('list-adv-actions');
+
+        // Corrective Actions List
+        const listEl = document.getElementById('list-adv-actions');
+        if (listEl) {
           listEl.innerHTML = '';
-          adv.corrective_actions.forEach(act => {
+          if (Array.isArray(adv.corrective_actions) && adv.corrective_actions.length > 0) {
+            adv.corrective_actions.forEach(function(act) {
+              const li = document.createElement('li');
+              li.textContent = act;
+              listEl.appendChild(li);
+            });
+          } else if (adv.recommended_action) {
+            const li1 = document.createElement('li');
+            li1.textContent = adv.recommended_action;
+            listEl.appendChild(li1);
+            if (adv.confidence_note) {
+              const li2 = document.createElement('li');
+              li2.textContent = adv.confidence_note;
+              listEl.appendChild(li2);
+            }
+          } else if (adv.analysis) {
             const li = document.createElement('li');
-            li.textContent = act;
+            li.textContent = adv.analysis;
             listEl.appendChild(li);
-          });
+          }
         }
       }
     }
 
+    // ==================================================================================
+    // DIAGNOSTIC MODE SWITCHER (OVERLAY / HEATMAP / SOBEL / DE-ARTIFACTED)
+    // ==================================================================================
+    function setDiagnosticMode(mode) {
+      currentMode = mode;
+      var btnIds = {
+        'overlay': 'btn-mode-overlay',
+        'heatmap': 'btn-mode-heatmap',
+        'sobel': 'btn-mode-sobel',
+        'deartifacted': 'btn-mode-deartifacted'
+      };
+
+      Object.keys(btnIds).forEach(function(m) {
+        var btn = document.getElementById(btnIds[m]);
+        if (btn) {
+          btn.className = (m === mode)
+            ? 'mode-btn-active px-2.5 py-1 rounded font-semibold transition-all'
+            : 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all';
+        }
+      });
+
+      // Update right viewport image if we have visuals
+      var imgOutput = document.getElementById('img-output-diagnostic');
+      if (imgOutput && currentVisuals[mode]) {
+        imgOutput.src = currentVisuals[mode];
+        imgOutput.classList.remove('hidden');
+        var ph = document.getElementById('placeholder-output');
+        if (ph) ph.classList.add('hidden');
+      }
+
+      // Update watermark
+      var watermark = document.getElementById('mode-watermark');
+      if (watermark) {
+        var labels = {
+          'overlay': 'MODE: DEFECT OVERLAY (EXACT BOUNDING)',
+          'heatmap': 'MODE: DEFECT ANOMALY HEATMAP (JET)',
+          'sobel': 'MODE: SOBEL GRADIENT MAGNITUDE (TURBO)',
+          'deartifacted': 'MODE: AMAT DE-ARTIFACTED CLEAN'
+        };
+        watermark.textContent = labels[mode] || mode.toUpperCase();
+      }
+    }
+
+    // ==================================================================================
+    // TAB SWITCHER
+    // ==================================================================================
+    function switchTab(tabId) {
+      ['tab-review', 'tab-sops', 'tab-audit', 'tab-bench'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', id !== tabId);
+      });
+
+      var navBtns = {
+        'tab-review': 'nav-btn-review',
+        'tab-sops': 'nav-btn-sops',
+        'tab-audit': 'nav-btn-audit',
+        'tab-bench': 'nav-btn-bench'
+      };
+
+      Object.keys(navBtns).forEach(function(tId) {
+        var btn = document.getElementById(navBtns[tId]);
+        if (btn) {
+          btn.className = (tId === tabId)
+            ? 'nav-tab-active px-3 py-1.5 rounded-md font-medium border border-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5'
+            : 'px-3 py-1.5 rounded-md font-medium border border-transparent text-slate-400 hover:text-white transition-all flex items-center gap-1.5';
+        }
+      });
+
+      if (tabId === 'tab-sops') loadSOPs();
+      if (tabId === 'tab-audit') loadAuditEvents();
+    }
+
+    // ==================================================================================
+    // HELPERS
+    // ==================================================================================
     function getClassDescription(c) {
-      const desc = {
+      var desc = {
         'BRIDGE': 'Conductive Short Circuit',
         'PARTICLE': 'Surface Contaminant',
         'SCRATCH': 'CMP Abrasive Gouge',
@@ -836,32 +1055,29 @@
       return desc[c] || 'Inspected Pattern';
     }
 
-    function runPipelineAction() {
-      fetchRandomSample();
-    }
-
-    // Load SOPs
+    // ==================================================================================
+    // LOAD SOPs & AUDIT EVENTS (for Tab 2 and Tab 3)
+    // ==================================================================================
     async function loadSOPs() {
       try {
-        const res = await fetch('/api/sops');
-        const sops = await res.json();
-        const container = document.getElementById('sop-cards-container');
+        var res = await fetch('/api/sops');
+        var sops = await res.json();
+        var container = document.getElementById('sop-cards-container');
         if (!container) return;
         container.innerHTML = '';
-        sops.forEach(s => {
-          const card = document.createElement('div');
+        sops.forEach(function(s) {
+          var card = document.createElement('div');
           card.className = 'glass-card p-4 space-y-2';
-          card.innerHTML = `
-            <div class="flex items-center justify-between border-b border-white/10 pb-2">
-              <span class="font-mono text-xs font-bold text-tealAccent">${s.sop_id || 'SOP'}</span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">${s.process_area || 'Fab'}</span>
-            </div>
-            <h4 class="font-semibold text-sm text-white">${s.title || 'Standard Operating Procedure'}</h4>
-            <p class="text-xs text-slate-300 leading-relaxed">${s.summary || ''}</p>
-            <div class="pt-2 text-[11px] font-mono text-slate-400">
-              Trigger: <span class="text-goldAccent">${s.trigger_defect || 'Defect'}</span> (Severity ≥ ${s.severity_threshold || '0.5'})
-            </div>
-          `;
+          card.innerHTML =
+            '<div class="flex items-center justify-between border-b border-white/10 pb-2">' +
+              '<span class="font-mono text-xs font-bold text-tealAccent">' + (s.sop_id || 'SOP') + '</span>' +
+              '<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">' + (s.process_area || 'Fab') + '</span>' +
+            '</div>' +
+            '<h4 class="font-semibold text-sm text-white">' + (s.title || 'Standard Operating Procedure') + '</h4>' +
+            '<p class="text-xs text-slate-300 leading-relaxed">' + (s.summary || '') + '</p>' +
+            '<div class="pt-2 text-[11px] font-mono text-slate-400">' +
+              'Trigger: <span class="text-goldAccent">' + (s.trigger_defect || 'Defect') + '</span> (Severity \u2265 ' + (s.severity_threshold || '0.5') + ')' +
+            '</div>';
           container.appendChild(card);
         });
       } catch (e) {
@@ -869,29 +1085,27 @@
       }
     }
 
-    // Load Audit Events
     async function loadAuditEvents() {
       try {
-        const res = await fetch('/api/events?limit=30');
-        const events = await res.json();
-        const tbody = document.getElementById('audit-table-body');
+        var res = await fetch('/api/events?limit=30');
+        var events = await res.json();
+        var tbody = document.getElementById('audit-table-body');
         if (!tbody) return;
         tbody.innerHTML = '';
-        events.forEach(ev => {
-          const tr = document.createElement('tr');
+        events.forEach(function(ev) {
+          var tr = document.createElement('tr');
           tr.className = 'hover:bg-white/5 transition-colors';
-          const dispColor = ev.disposition === 'PASS' ? 'text-passEmerald' : (ev.disposition === 'REWORK' ? 'text-reworkAmber' : 'text-scrapCrimson');
-          tr.innerHTML = `
-            <td class="p-3 text-slate-400">#${ev.id}</td>
-            <td class="p-3 text-tealAccent truncate max-w-[120px]" title="${ev.image_hash || ''}">${(ev.image_hash || '').substring(0, 10)}...</td>
-            <td class="p-3 font-semibold text-white">${ev.predicted_class}</td>
-            <td class="p-3">${(ev.confidence * 100).toFixed(1)}%</td>
-            <td class="p-3">${Number(ev.kdi_score || 0).toFixed(3)}</td>
-            <td class="p-3 font-bold ${dispColor}">${ev.disposition}</td>
-            <td class="p-3 text-slate-400">${Number(ev.processing_time_ms || 43).toFixed(1)} ms</td>
-            <td class="p-3 text-slate-300">${ev.advisor_source || 'TEMPLATE'}</td>
-            <td class="p-3 text-slate-500 text-[10px]">${(ev.timestamp || '').substring(0, 19)}</td>
-          `;
+          var dispColor = ev.disposition === 'PASS' ? 'text-passEmerald' : (ev.disposition === 'REWORK' ? 'text-reworkAmber' : 'text-scrapCrimson');
+          tr.innerHTML =
+            '<td class="p-3 text-slate-400">#' + ev.id + '</td>' +
+            '<td class="p-3 text-tealAccent truncate max-w-[120px]" title="' + (ev.image_hash || '') + '">' + (ev.image_hash || '').substring(0, 10) + '...</td>' +
+            '<td class="p-3 font-semibold text-white">' + ev.predicted_class + '</td>' +
+            '<td class="p-3">' + (ev.confidence * 100).toFixed(1) + '%</td>' +
+            '<td class="p-3">' + Number(ev.kdi_score || 0).toFixed(3) + '</td>' +
+            '<td class="p-3 font-bold ' + dispColor + '">' + ev.disposition + '</td>' +
+            '<td class="p-3 text-slate-400">' + Number(ev.processing_time_ms || 0).toFixed(1) + ' ms</td>' +
+            '<td class="p-3 text-slate-300">' + (ev.advisor_source || 'TEMPLATE') + '</td>' +
+            '<td class="p-3 text-slate-500 text-[10px]">' + (ev.timestamp || '').substring(0, 19) + '</td>';
           tbody.appendChild(tr);
         });
       } catch (e) {
@@ -899,10 +1113,10 @@
       }
     }
 
-    // Initial Load: Fetch a random sample automatically on startup
-    window.addEventListener('DOMContentLoaded', () => {
-      fetchRandomSample('bridge');
-    });
+    // ==================================================================================
+    // ON PAGE LOAD: clean slate — no random auto-fetch
+    // ==================================================================================
+    // Page starts empty. User must choose an image first, then click RUN PIPELINE.
   </script>
 </body>
 </html>

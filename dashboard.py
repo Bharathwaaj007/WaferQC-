@@ -325,6 +325,44 @@ def download_audit_csv():
         return FileResponse(csv_temp, filename="waferqc_audit_log.csv", media_type="text/csv")
     return JSONResponse({"error": "Failed to generate CSV"}, status_code=500)
 
+@app.get("/api/sample_image")
+def get_sample_image(class_name: str = None):
+    import random
+    import glob
+    import base64
+    if class_name and os.path.exists(f"dataset_3k/test/{class_name}"):
+        files = glob.glob(f"dataset_3k/test/{class_name}/*.png")
+    else:
+        files = glob.glob("dataset_3k/test/*/*.png")
+    if not files:
+        files = glob.glob("samples/*.png") + glob.glob("samples_v2/*.png")
+    if not files:
+        return JSONResponse({"error": "No test samples found"}, status_code=404)
+
+    chosen_file = random.choice(files)
+    with open(chosen_file, "rb") as f:
+        data_b64 = base64.b64encode(f.read()).decode("utf-8")
+    data_url = f"data:image/png;base64,{data_b64}"
+
+    return JSONResponse({
+        "image_path": chosen_file.replace("\\", "/"),
+        "filename": os.path.basename(chosen_file),
+        "class_name": class_name or "random",
+        "raw_base64": data_url
+    })
+
+@app.post("/api/inspect_sample")
+async def inspect_sample_path(image_path: str = Form(...), pattern_type: str = Form("line_space")):
+    pipe = get_pipeline()
+    if not os.path.exists(image_path):
+        return JSONResponse({"error": f"File not found: {image_path}"}, status_code=404)
+    res = pipe.process_image(image_path, pattern_type=pattern_type)
+    print(f"\n[SAMPLE INSPECTION] File: {os.path.basename(image_path)}")
+    print(f"  -> Predicted: {res['predicted_class']} (Conf: {res['confidence']:.2%}) | BBox: {res['bbox']} | Area: {res['area_px']} px²")
+    print(f"  -> KDI: {res['kdi_score']:.3f} | Disposition: {res['disposition']} | Override: {res['critical_override']}")
+    print(f"  -> Latency: {res['timing_ms']['total']:.1f} ms | Event #{res['event_id']} saved to SQLite\n", flush=True)
+    return JSONResponse(res)
+
 @app.get("/api/random_sample")
 def get_random_sample(class_name: str = None):
     import random

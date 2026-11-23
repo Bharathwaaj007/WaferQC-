@@ -88,14 +88,14 @@ class MockLlamaRunner:
             conf_note = "Particulate anomaly requiring chamber review."
         elif class_label in ("nuisance_charging", "nuisance_jitter"):
             analysis = f"Non-defect e-beam imaging artifact identified ({class_label}). No topography damage."
-            root_cause = "Beam-sample electrostatic charging or scan deflection noise."
-            rec_action = "Calibrate SEM column beam centering and neutralizer."
+            root_cause = cause if top_sop and top_sop.get("sop_id") == "SOP-SEM-01" else "Beam-sample electrostatic charging or scan deflection noise."
+            rec_action = action if top_sop and top_sop.get("sop_id") == "SOP-SEM-01" else "Calibrate SEM column beam centering and neutralizer."
             conf_note = "Nuisance filtered; wafer uncompromised."
         else:
             analysis = "Inspection field confirms standard nominal topography without defect anomalies."
-            root_cause = "Nominal process condition."
-            rec_action = "Release lot to next process step."
-            conf_note = "Clean wafer die."
+            root_cause = cause if top_sop and top_sop.get("sop_id") == "SOP-NOM-01" else "Nominal process condition within statistical limits."
+            rec_action = action if top_sop and top_sop.get("sop_id") == "SOP-NOM-01" else "Release lot to next process step."
+            conf_note = "Clean wafer die. Zero defects identified."
 
         resp_dict = {
             "analysis": analysis,

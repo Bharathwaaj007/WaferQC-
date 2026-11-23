@@ -1,0 +1,14 @@
+sop_id: SOP-NOM-01
+title: Nominal Wafer Topography Inspection & Lot Release
+process_area: Quality Assurance
+related_defect_classes:
+- clean
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Nominal photolithography, etch, and planarization profiles verified within fab statistical process limits.
+checks:
+- Verify line-edge roughness (LER) and critical dimension (CD) uniformity across dies.
+- Confirm background substrate contrast index is within baseline tolerance limits.
+corrective_actions:
+- Release wafer lot to next in-line process step (e.g. Dielectric Deposition / Interconnect Metallization).
+- Record nominal run telemetry in fab manufacturing execution system (MES).

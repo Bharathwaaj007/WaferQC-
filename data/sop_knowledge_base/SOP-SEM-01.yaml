@@ -1,0 +1,15 @@
+sop_id: SOP-SEM-01
+title: In-Line SEM Beam Column Calibration & Artifact Suppression
+process_area: Metrology / SEM Review
+related_defect_classes:
+- nuisance_charging
+- nuisance_jitter
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Electrostatic charging flare from dielectric substrate or scan-line jitter noise in deflection coil.
+checks:
+- Check e-beam flood gun neutralizer emission current and review chamber vacuum level.
+- Verify scan generator line-sync clock stability and electromagnetic shielding around column.
+corrective_actions:
+- Apply real-time digital de-artifacting filter (scan jitter compensation + flare suppression).
+- Clear wafer die as non-defect imaging nuisance; lot remains uncompromised.
