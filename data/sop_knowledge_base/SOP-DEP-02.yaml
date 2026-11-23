@@ -1,0 +1,15 @@
+sop_id: SOP-DEP-02
+title: PVD Target Micro-Arcing and Splatter
+process_area: Deposition
+related_defect_classes:
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Dielectric breakdown at sputter target edge redeposition zone producing micro-arcs.
+- Target nodule formation ejecting macroscopic metal droplets toward wafer.
+checks:
+- Check DC power supply arc suppression circuit event counter logs.
+- Inspect target erosion racetrack visually through load lock camera.
+corrective_actions:
+- Run target burn-in seasoning paste-down at reduced power.
+- If arc counts exceed 50/hour, replace sputter cathode target.

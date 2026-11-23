@@ -1,0 +1,17 @@
+sop_id: SOP-CMP-03
+title: Diamond Conditioning Disc Wear and Fracture
+process_area: CMP
+related_defect_classes:
+- scratch
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Diamond grit detachment from conditioning disc substrate migrating into slurry pad
+  interface.
+- Excessive conditioning downforce causing diamond chipping and micro-scratching.
+checks:
+- Microscopic visual inspection of diamond conditioner disc for missing grits.
+- Correlate scratch track orientation with conditioning arm sweep oscillation path.
+corrective_actions:
+- Immediately take CMP platen offline and replace diamond conditioning head.
+- Discard currently mounted pad and perform full platen deck DIW washdown.

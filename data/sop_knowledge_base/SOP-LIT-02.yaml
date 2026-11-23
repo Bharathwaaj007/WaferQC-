@@ -1,0 +1,15 @@
+sop_id: SOP-LIT-02
+title: Lithography Dose Drop / Underexposure
+process_area: Lithography
+related_defect_classes:
+- bridge
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Excimer laser energy pulse degradation or attenuator calibration offset.
+- Illumination optic fogging or photoresist outgassing deposits on final lens element.
+checks:
+- Review pulse energy sensor trend logs across previous 50 exposure runs.
+- Measure resist line-space space CD using automated CD-SEM.
+corrective_actions:
+- Perform laser chamber gas refill and energy calibration routine.
+- Schedule scanner optic inspection and nitrogen purge line purge verification.

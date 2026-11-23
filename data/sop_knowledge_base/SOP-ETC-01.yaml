@@ -1,0 +1,16 @@
+sop_id: SOP-ETC-01
+title: Plasma Etch Polymer Residue
+process_area: Etch
+related_defect_classes:
+- bridge
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Excessive passivation chemistry (CF4/CHF3 ratio skew) during trench etch.
+- Insufficient post-etch ash/strip process oxygen radical density.
+checks:
+- Measure optical emission spectroscopy (OES) endpoint fluorocarbon ratio trace.
+- Inspect wafer edge bevel under optical review for polymer ring accumulation.
+corrective_actions:
+- Adjust passivation gas mass flow controller (MFC) setpoint and verify flow calibration.
+- Execute downstream dry strip chamber oxygen plasma clean cycle.

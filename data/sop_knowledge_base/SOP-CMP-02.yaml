@@ -1,0 +1,15 @@
+sop_id: SOP-CMP-02
+title: CMP Polishing Pad Wear and Glazing
+process_area: CMP
+related_defect_classes:
+- scratch
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Pad groove depth worn below critical threshold preventing debris fluid transport.
+- Polyurethane pore glazing due to inadequate in-situ diamond conditioning.
+checks:
+- Measure residual pad groove depth using optical laser triangulation sensor.
+- Inspect pad surface texture for glazed slick spots.
+corrective_actions:
+- Execute aggressive pad conditioning recovery cycle.
+- Replace CMP polishing pad and recalibrate platen baseline height.

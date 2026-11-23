@@ -1,0 +1,18 @@
+sop_id: SOP-LIT-03
+title: Photoresist Scumming and Footing
+process_area: Lithography
+related_defect_classes:
+- bridge
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Incomplete photoresist dissolution in developer bath or developer nozzle pressure
+  drop.
+- Post-exposure bake (PEB) hotplate temperature non-uniformity causing residual unexposed
+  polymer.
+checks:
+- Inspect developer puddle dispense uniformity and nozzle pressure gauge readings.
+- Check 9-point thermal calibration data for PEB track bake stations.
+corrective_actions:
+- Purge and replace developer dispense filter and verify nozzle spray profile.
+- Recalibrate multi-zone PID controllers on PEB hotplate module.

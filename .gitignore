@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+waferqc_env/
+.env
+
+# Temporary artifacts & uploads
+outputs/upload_*
+outputs_test/
+*.tmp
+*.log
+
+# Database WAL files (keep main database)
+*.db-wal
+*.db-shm
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large dataset image folders (metadata.csv and generator scripts are tracked)
+# To regenerate: python generate_dataset.py --num-samples 3000
+dataset_3k/train/
+dataset_3k/val/
+dataset_3k/test/
+samples/
+samples_v2/

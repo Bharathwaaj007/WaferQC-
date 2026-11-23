@@ -1,0 +1,15 @@
+sop_id: SOP-ETC-02
+title: Bias RF Power Low / Incomplete Trench Clearing
+process_area: Etch
+related_defect_classes:
+- bridge
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Bias RF match network capacitor tuning stall preventing efficient ion bombardment.
+- Degraded electrostatic chuck (ESC) RF coupling connection.
+checks:
+- Inspect forward vs reflected RF power log during trench clear step.
+- Measure trench depth profile using cross-sectional focus ion beam (FIB-SEM).
+corrective_actions:
+- Perform RF impedance matching network calibration and capacitor motor test.
+- Inspect ESC surface contact pins for arcing or resistive oxidation.

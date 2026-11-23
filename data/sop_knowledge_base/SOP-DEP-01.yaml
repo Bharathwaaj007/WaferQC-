@@ -1,0 +1,15 @@
+sop_id: SOP-DEP-01
+title: CVD/ALD Showerhead Flaking Contamination
+process_area: Deposition
+related_defect_classes:
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Thermal expansion stress causing deposited film spalling from gas distribution plate.
+- Improper in-situ NF3 plasma clean recipe leaving friable byproduct residue.
+checks:
+- Inspect particle map spatial distribution for radial pattern centered on gas inlets.
+- Review in-situ chamber clean duration and mass spectrometer effluent traces.
+corrective_actions:
+- Execute deep chamber NF3 clean recipe and extend purge cycle duration.
+- Inspect showerhead assembly via vacuum viewport for blistering or discoloration.

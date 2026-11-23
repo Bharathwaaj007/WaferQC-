@@ -1,0 +1,15 @@
+sop_id: SOP-CLN-01
+title: Wet Clean Particle Excursion
+process_area: Wet Clean
+related_defect_classes:
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Megasonic transducer cavitation degradation or delamination from tank bottom.
+- Recirculation bath particle filter breakthrough in SC-1 (NH4OH/H2O2/H2O) bath.
+checks:
+- Measure megasonic acoustic power density using hydrophone sensor probe.
+- Inspect liquid particle counter (LPC) trend for SC-1 bath line.
+corrective_actions:
+- Drain, clean, and recharge SC-1 chemical bath with fresh chemistry.
+- Replace 0.05 um chemical filter elements in recirculation loop.

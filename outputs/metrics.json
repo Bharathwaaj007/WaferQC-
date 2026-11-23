@@ -1,0 +1,134 @@
+{
+  "architecture": "resnet18",
+  "best_val_macro_f1": 0.9637,
+  "test_macro_f1": 0.966,
+  "test_accuracy": 0.9658,
+  "per_class": {
+    "bridge": {
+      "precision": 0.9481,
+      "recall": 0.9359,
+      "f1": 0.9419,
+      "support": 78
+    },
+    "clean": {
+      "precision": 0.9048,
+      "recall": 0.9744,
+      "f1": 0.9383,
+      "support": 78
+    },
+    "nuisance_charging": {
+      "precision": 0.9867,
+      "recall": 0.9487,
+      "f1": 0.9673,
+      "support": 78
+    },
+    "nuisance_jitter": {
+      "precision": 0.987,
+      "recall": 0.9744,
+      "f1": 0.9806,
+      "support": 78
+    },
+    "particle": {
+      "precision": 0.9744,
+      "recall": 0.9744,
+      "f1": 0.9744,
+      "support": 78
+    },
+    "scratch": {
+      "precision": 1.0,
+      "recall": 0.9872,
+      "f1": 0.9935,
+      "support": 78
+    }
+  },
+  "confusion_matrix": [
+    [
+      73,
+      2,
+      0,
+      1,
+      2,
+      0
+    ],
+    [
+      1,
+      76,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      4,
+      74,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      2,
+      0,
+      76,
+      0,
+      0
+    ],
+    [
+      2,
+      0,
+      0,
+      0,
+      76,
+      0
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      77
+    ]
+  ],
+  "threshold_sweep": {
+    "thresholds": [
+      0.3,
+      0.4,
+      0.5,
+      0.55,
+      0.6,
+      0.7,
+      0.8,
+      0.9
+    ],
+    "accuracies": [
+      0.9657,
+      0.9657,
+      0.9719,
+      0.9782,
+      0.9781,
+      0.9845,
+      0.991,
+      0.9976
+    ],
+    "abstain_rates": [
+      0.0021,
+      0.0021,
+      0.0107,
+      0.0214,
+      0.0235,
+      0.0321,
+      0.0556,
+      0.094
+    ]
+  },
+  "class_mapping": {
+    "bridge": 0,
+    "clean": 1,
+    "nuisance_charging": 2,
+    "nuisance_jitter": 3,
+    "particle": 4,
+    "scratch": 5
+  }
+}

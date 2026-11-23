@@ -1,0 +1,17 @@
+sop_id: SOP-CLN-02
+title: Single-Wafer Spin Clean Rinse Nozzle Misalignment
+process_area: Wet Clean
+related_defect_classes:
+- particle
+- scratch
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- DI water high-pressure spray nozzle arm home position stepper error.
+- Partial droplet crystallization on nozzle tip causing spray deflection or stream
+  breakup.
+checks:
+- Verify nozzle arm sweep trajectory using optical strobe alignment jig.
+- Examine dry water-mark pattern across wafer center and edge.
+corrective_actions:
+- Clean rinse nozzle assembly with ultrasonic IPA bath.
+- Recalibrate sweep angle servo motor zero position.

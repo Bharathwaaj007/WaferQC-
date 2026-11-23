@@ -1,0 +1,15 @@
+sop_id: SOP-ETC-03
+title: Etch Chamber Wall Flaking Contamination
+process_area: Etch
+related_defect_classes:
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Al2O3 / Y2O3 chamber liner coating delamination after extended RF hours.
+- Stress peeling of accumulated polymer from anodized chamber upper lid.
+checks:
+- Check chamber total RF hours counter against preventive maintenance threshold.
+- Perform dark-field wafer surface inspection on blank monitor wafer.
+corrective_actions:
+- Initiate chamber wet clean and replace ceramic shield kit.
+- Execute seasoning run with 25 dummy wafers before releasing chamber to production.

@@ -1,0 +1,17 @@
+sop_id: SOP-CMP-01
+title: CMP Slurry Particle Agglomeration
+process_area: CMP
+related_defect_classes:
+- particle
+- scratch
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Slurry delivery loop point-of-use (POU) filter rupture or pressure differential
+  spike.
+- Slurry pH destabilization causing secondary particle clustering above 0.5 microns.
+checks:
+- Inspect POU depth filter delta-P sensor logs and flow rate monitors.
+- Test slurry zeta potential and particle size distribution via dynamic light scattering.
+corrective_actions:
+- Flush slurry delivery line with DI water and replace 0.2 um POU cartridge.
+- Verify slurry barrel expiration date and agitation recirculation rate.

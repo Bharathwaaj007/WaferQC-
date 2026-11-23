@@ -1,0 +1,16 @@
+sop_id: SOP-HND-01
+title: Wafer Handling Robot End-Effector Abrasion
+process_area: Handling
+related_defect_classes:
+- scratch
+- particle
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Vacuum wand or end-effector ceramic contact pin wear creating particulate debris.
+- Cassette slot optical mapper offset causing wafer scraping during load/unload.
+checks:
+- Inspect FOUP cassette entry slot clearance and robot teach points.
+- Examine wafer backside and bevel edge for collinear scratch signatures.
+corrective_actions:
+- Re-teach transfer robot pick/place coordinates with teaching jig.
+- Replace elastomer vacuum pads and ceramic positioning pins on robot blade.

@@ -1,0 +1,16 @@
+sop_id: SOP-LIT-01
+title: Lithography Focus Drift
+process_area: Lithography
+related_defect_classes:
+- bridge
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Wafer chuck z-stage positioning deviation or thermal drift during stepper exposure.
+- Laser leveling sensor optical misalignment due to backside wafer contamination.
+checks:
+- Verify chuck flatness interferometer telemetry and auto-focus offset log on stepper
+  unit.
+- Perform Focus-Exposure Matrix (FEM) test wafer review to inspect Bossung curves.
+corrective_actions:
+- Recalibrate auto-focus optical sensors and execute chuck plane leveling compensation.
+- Quarantine current litho lot for critical dimension (CD) SEM review.

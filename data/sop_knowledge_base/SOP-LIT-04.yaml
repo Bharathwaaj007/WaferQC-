@@ -1,0 +1,15 @@
+sop_id: SOP-LIT-04
+title: Stepper Overlay Shift
+process_area: Lithography
+related_defect_classes:
+- bridge
+disclaimer: ILLUSTRATIVE HYPOTHESIS — not a validated fab procedure
+root_causes:
+- Inter-die alignment mark damage from previous chemical-mechanical planarization.
+- Thermal expansion mismatch between reticle stage and wafer chuck stage.
+checks:
+- Analyze 5-point overlay error vector map across wafer perimeter.
+- Verify reticle magnification and rotation correction coefficients.
+corrective_actions:
+- Apply feed-forward alignment compensation matrix for downstream wafers.
+- Inspect reticle alignment marks and clean fiducial optics.
