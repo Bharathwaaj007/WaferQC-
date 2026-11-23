@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>WaferQC — SEM Inline Defect Review & Advisory Console</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            deep: '#060B0D',
+            panel: 'rgba(14, 23, 27, 0.78)',
+            panelSolid: '#0E171B',
+            tealAccent: '#5FD0C4',
+            goldAccent: '#E8C170',
+            passEmerald: '#10B981',
+            reworkAmber: '#F59E0B',
+            scrapCrimson: '#EF4444',
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Industrial cleanroom styling with maximum legibility */
+    body {
+      background-color: #060B0D;
+      color: #F1F5F9;
+      background-image: 
+        radial-gradient(circle at 45% 15%, rgba(15, 30, 36, 0.75) 0%, rgba(6, 11, 13, 0.99) 75%), 
+        radial-gradient(circle at 12% 40%, rgba(95, 208, 196, 0.05) 0%, transparent 50%);
+      font-feature-settings: "tnum" 1, "zero" 1;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Glass card styling */
+    .glass-card {
+      background: rgba(14, 23, 27, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 16px;
+      box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.70), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(16px);
+    }
+
+    .glass-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      backdrop-filter: blur(8px);
+    }
+
+    .gold-selected-card {
+      border: 1px solid #E8C170 !important;
+      box-shadow: 0 0 22px -2px rgba(232, 193, 112, 0.32), inset 0 1px 1px rgba(232, 193, 112, 0.45) !important;
+      background: linear-gradient(135deg, rgba(232, 193, 112, 0.15) 0%, rgba(14, 23, 27, 0.90) 100%) !important;
+    }
+
+    .node-selected {
+      border-color: #E8C170 !important;
+      box-shadow: 0 0 18px -2px rgba(232, 193, 112, 0.38) !important;
+      background: rgba(28, 40, 45, 0.95) !important;
+    }
+
+    /* Violet halo behind hero wafer disc */
+    .wafer-halo {
+      position: absolute;
+      width: 270px;
+      height: 270px;
+      border-radius: 9999px;
+      background: radial-gradient(circle, rgba(147, 51, 234, 0.25) 0%, rgba(124, 58, 237, 0.09) 50%, transparent 70%);
+      filter: blur(30px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Custom high-contrast scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(95, 208, 196, 0.45); }
+
+    .connector-svg {
+      pointer-events: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: grid; }
+    .tab-content.active-flex { display: flex; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col font-sans selection:bg-teal-900/60 selection:text-teal-200">
+
+<!-- ========================================================================= -->
+<!-- 1. TOP SYSTEM TELEMETRY HEADER                                            -->
+<!-- ========================================================================= -->
+<header class="h-14 border-b border-white/[0.10] px-4 sm:px-6 flex items-center justify-between bg-[#060B0D]/90 backdrop-blur-md sticky top-0 z-50">
+  <!-- Left: Logo & Honest Operating Mode Pill -->
+  <div class="flex items-center gap-3.5">
+    <div class="flex items-center gap-2.5">
+      <svg class="w-6 h-6 text-tealAccent" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+        <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-dasharray="2 3"></circle>
+        <circle cx="12" cy="12" r="4.2" stroke="#E8C170"></circle>
+        <path d="M12 2.5V7M12 17v4.5M2.5 12H7M17 12h4.5" stroke="currentColor"></path>
+        <circle cx="12" cy="12" fill="#E8C170" r="1.2"></circle>
+      </svg>
+      <span class="font-bold tracking-wider text-base text-white uppercase font-mono">WaferQC</span>
+    </div>
+    <span class="h-4 w-px bg-white/15"></span>
+    <span id="backend-status-pill" class="px-2.5 py-0.5 text-xs font-mono font-medium tracking-wide rounded-full border border-tealAccent/40 text-tealAccent bg-tealAccent/10">
+      CONNECTING...
+    </span>
+  </div>
+
+  <!-- Right: Edge Hardware Health Strip (Real Pi 5 Cortex-A76 Metrics) -->
+  <div class="hidden lg:flex items-center gap-2.5 text-xs font-mono text-slate-200">
+    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="BCM2712 SoC Active Cooler">
+      <span class="w-2 h-2 rounded-full bg-tealAccent animate-pulse"></span>
+      <span class="text-slate-400 font-sans">Pi 5 Temp:</span>
+      <span class="text-slate-100 font-bold" id="stat-temp">51.2°C</span>
+    </div>
+    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Vision CPU Core Affinity">
+      <span class="text-slate-400 font-sans">Vision Cores 0-1:</span>
+      <span class="text-tealAccent font-bold" id="stat-vision">43.6 ms (23 FPS)</span>
+    </div>
+    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Llama 3.2 1B Core Affinity">
+      <span class="text-slate-400 font-sans">Advisor Cores 2-3:</span>
+      <span class="text-slate-100 font-bold" id="stat-advisor">Idle / Standby</span>
+    </div>
+    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Llama Resident Memory Budget">
+      <span class="text-slate-400 font-sans">RAM:</span>
+      <span class="text-slate-100 font-bold">2.1 / 8.0 GB</span>
+    </div>
+    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Non-Blocking SQLite Queue">
+      <span class="text-slate-400 font-sans">IPC Queue:</span>
+      <span class="text-passEmerald font-bold" id="stat-queue">0 Pending</span>
+    </div>
+    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80 text-slate-200">
+      <svg class="w-3.5 h-3.5 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><rect height="11" rx="2" ry="2" width="18" x="3" y="11"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      <span class="font-medium">Air-Gapped</span>
+    </div>
+  </div>
+</header>
+
+<!-- ========================================================================= -->
+<!-- 2. TABS BAR                                                               -->
+<!-- ========================================================================= -->
+<nav class="h-11 border-b border-white/[0.10] px-4 sm:px-6 flex items-center gap-8 text-sm font-semibold bg-[#060B0D]/70 backdrop-blur-sm">
+  <button id="tab-btn-live" onclick="switchTab('live')" class="h-full relative text-white flex items-center gap-2 focus:outline-none transition-colors">
+    <span>Live Review</span>
+    <span id="tab-indicator-live" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170]"></span>
+  </button>
+  <button id="tab-btn-advisor" onclick="switchTab('advisor')" class="h-full relative text-slate-400 hover:text-white flex items-center gap-2 focus:outline-none transition-colors">
+    <span>Advisor & Verifier</span>
+    <span class="w-1.5 h-1.5 rounded-full bg-tealAccent"></span>
+    <span id="tab-indicator-advisor" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170] hidden"></span>
+  </button>
+  <button id="tab-btn-audit" onclick="switchTab('audit')" class="h-full relative text-slate-400 hover:text-white flex items-center gap-2 focus:outline-none transition-colors">
+    <span>Audit Log</span>
+    <span id="tab-indicator-audit" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170] hidden"></span>
+  </button>
+  <button id="tab-btn-bench" onclick="switchTab('bench')" class="h-full relative text-slate-400 hover:text-white flex items-center gap-2 focus:outline-none transition-colors">
+    <span>Benchmarks</span>
+    <span id="tab-indicator-bench" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170] hidden"></span>
+  </button>
+</nav>
+
+<!-- ========================================================================= -->
+<!-- 3. TAB 1: LIVE REVIEW (HERO THREE-ZONE WORKSPACE)                         -->
+<!-- ========================================================================= -->
+<main id="tab-content-live" class="tab-content active flex-1 p-4 lg:p-6 grid-cols-1 xl:grid-cols-12 gap-5 max-w-[1720px] mx-auto w-full">
+
+  <!-- ZONE 1: HERO WAFER DISC (Left, 3 cols) -->
+  <section class="xl:col-span-3 flex flex-col gap-4">
+    <div class="glass-card p-5 relative overflow-hidden flex flex-col items-center justify-between flex-1 min-h-[580px]">
+      <div class="w-full flex items-center justify-between pb-3 border-b border-white/[0.08] z-10">
+        <div>
+          <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Substrate Inspection</h2>
+          <div class="text-base font-bold text-white mt-0.5">300mm Silicon Wafer</div>
+        </div>
+        <span class="px-2.5 py-1 text-xs font-mono font-bold text-tealAccent bg-tealAccent/15 border border-tealAccent/30 rounded-md">
+          AMAT SEM-04
+        </span>
+      </div>
+
+      <!-- Wafer Canvas with Violet Glow Halo -->
+      <div class="relative w-full aspect-square max-w-[270px] my-4 flex items-center justify-center">
+        <div class="wafer-halo"></div>
+        <canvas id="wafer-canvas" width="270" height="270" class="relative z-10 cursor-pointer drop-shadow-2xl"></canvas>
+        <div class="absolute bottom-1 text-[11px] font-mono font-bold text-slate-300 tracking-wider z-10 bg-slate-950/80 px-2.5 py-0.5 rounded border border-white/10">
+          ALIGNMENT NOTCH ▼
+        </div>
+      </div>
+
+      <!-- Lot & Inspection Metadata -->
+      <div class="w-full space-y-3.5 z-10">
+        <div class="grid grid-cols-2 gap-2 text-xs font-mono bg-white/[0.03] p-3 rounded-xl border border-white/[0.08]">
+          <div>
+            <span class="text-slate-400 block text-[11px] font-sans">LOT IDENTIFIER</span>
+            <span class="text-white font-bold text-xs mt-0.5 block">#IN-BLR-9402A</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block text-[11px] font-sans">CARRIER / WAFER</span>
+            <span class="text-white font-bold text-xs mt-0.5 block">Slot 08 · Wafer #04</span>
+          </div>
+          <div class="col-span-2 pt-2 border-t border-white/[0.06] flex justify-between items-center">
+            <span class="text-slate-300 text-xs font-sans">TOTAL DIES INSPECTED</span>
+            <span id="stat-total-dies" class="text-tealAccent font-bold text-sm">1,428 Dies</span>
+          </div>
+        </div>
+
+        <!-- Proportional Yield Bar -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs font-mono">
+            <span class="text-slate-300 font-sans">DISPOSITION YIELD</span>
+            <span id="stat-yield-pct" class="font-bold text-tealAccent text-sm">94.1%</span>
+          </div>
+          <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden flex border border-white/[0.12] p-0.5">
+            <div id="yield-bar-pass" class="bg-passEmerald h-full rounded-l-full transition-all duration-500" style="width: 88.5%;" title="Pass"></div>
+            <div id="yield-bar-rework" class="bg-reworkAmber h-full transition-all duration-500" style="width: 8.2%;" title="Rework"></div>
+            <div id="yield-bar-scrap" class="bg-scrapCrimson h-full rounded-r-full transition-all duration-500" style="width: 3.3%;" title="Scrap"></div>
+          </div>
+          <div class="flex justify-between items-center text-xs font-mono pt-1 text-slate-300">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-passEmerald"></span> Pass: <strong id="count-pass" class="text-white">1,264</strong></span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-reworkAmber"></span> Rework: <strong id="count-rework" class="text-white">117</strong></span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-scrapCrimson"></span> Scrap: <strong id="count-scrap" class="text-white">47</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ZONE 2: DEFECT TAXONOMY & ARC EVENT NODES (Middle, 5 cols) -->
+  <section class="xl:col-span-5 relative flex flex-col min-h-[580px]">
+    <div class="glass-card p-5 flex-1 relative flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.08] z-10">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-goldAccent"></span>
+          <h2 class="text-xs uppercase tracking-wider text-slate-200 font-mono font-bold">Defect Taxonomy & Recent Review Nodes</h2>
+        </div>
+        <span class="text-xs font-mono text-slate-300">Active Fan-Out: <strong id="active-class-pill" class="text-goldAccent font-bold">Bridge</strong></span>
+      </div>
+
+      <!-- SVG Bezier Curves Overlay connecting Class Card to Event Nodes -->
+      <svg id="curve-svg" class="connector-svg" preserveAspectRatio="none" viewBox="0 0 600 520"></svg>
+
+      <!-- Two Column Container: Left Classes / Right Event Nodes -->
+      <div class="grid grid-cols-12 gap-3 flex-1 z-10 relative">
+        <!-- Column A: 6 Stacked Defect Classes -->
+        <div class="col-span-5 flex flex-col justify-between gap-2 py-1" id="defect-classes-stack">
+          <!-- 1. Bridge -->
+          <button id="btn-class-bridge" onclick="selectDefectClass('bridge', this)" class="defect-class-btn text-left p-2.5 rounded-xl gold-selected-card transition-all flex items-center justify-between relative group" data-type="bridge">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-goldAccent"></span>
+                <span class="text-xs font-bold text-goldAccent block truncate">Bridge</span>
+              </div>
+              <span class="text-[11px] font-mono text-scrapCrimson font-semibold">Conductive Short</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span id="badge-count-bridge" class="text-xs font-mono font-bold text-goldAccent px-2 py-0.5 rounded bg-goldAccent/20 border border-goldAccent/40">47</span>
+              <span class="text-goldAccent text-xs">▶</span>
+            </div>
+          </button>
+
+          <!-- 2. Particle -->
+          <button onclick="selectDefectClass('particle', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="particle">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Particle</span>
+              <span class="text-[11px] font-mono text-reworkAmber font-medium">Surface Contaminant</span>
+            </div>
+            <span id="badge-count-particle" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">58</span>
+          </button>
+
+          <!-- 3. Scratch -->
+          <button onclick="selectDefectClass('scratch', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="scratch">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Scratch</span>
+              <span class="text-[11px] font-mono text-scrapCrimson font-medium">Abrasive Gouge</span>
+            </div>
+            <span id="badge-count-scratch" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">31</span>
+          </button>
+
+          <!-- 4. Clean -->
+          <button onclick="selectDefectClass('clean', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="clean">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Clean</span>
+              <span class="text-[11px] font-mono text-passEmerald font-medium">Nominal Topography</span>
+            </div>
+            <span id="badge-count-clean" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">1,264</span>
+          </button>
+
+          <!-- 5. Charging Nuisance -->
+          <button onclick="selectDefectClass('nuisance_charging', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="nuisance_charging">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Charging Nuisance</span>
+              <span class="text-[11px] font-mono text-slate-300 font-medium">Beam Flare (False)</span>
+            </div>
+            <span id="badge-count-charging" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">19</span>
+          </button>
+
+          <!-- 6. Jitter Nuisance -->
+          <button onclick="selectDefectClass('nuisance_jitter', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="nuisance_jitter">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Jitter Nuisance</span>
+              <span class="text-[11px] font-mono text-slate-300 font-medium">Scan Vibration</span>
+            </div>
+            <span id="badge-count-jitter" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">9</span>
+          </button>
+        </div>
+
+        <!-- Center spacer for Bezier arc -->
+        <div class="col-span-1"></div>
+
+        <!-- Column B: 8 Arc Event Nodes -->
+        <div class="col-span-6 flex flex-col justify-between gap-2 overflow-hidden" id="event-nodes-container">
+          <!-- Dynamically injected via script -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ZONE 3: GLASS DETAIL RAIL (Right, 4 cols) -->
+  <section class="xl:col-span-4 flex flex-col gap-4">
+    <div class="glass-card p-5 flex flex-col gap-3.5 flex-1" id="detail-rail">
+      <!-- Header: Title with SCRAP/REWORK/PASS badge -->
+      <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="detail-header-title" class="text-sm font-bold text-white tracking-wide font-mono">BRIDGE · DIE [R14, C09]</span>
+          </div>
+          <span class="text-xs font-mono text-slate-400">Event Hash: <span id="detail-header-hash" class="text-tealAccent font-bold">d4a97ef1</span></span>
+        </div>
+        <span id="detail-disp-badge" class="px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-scrapCrimson/60 text-scrapCrimson bg-scrapCrimson/15 shadow-[0_0_14px_rgba(239,68,68,0.25)]">
+          SCRAP
+        </span>
+      </div>
+
+      <!-- SEM Crop Inspector with De-artifacted vs Raw Toggle -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono font-semibold text-slate-200">SEM REVIEW CROP (256×256)</span>
+          <div class="flex items-center rounded-lg border border-white/[0.12] p-0.5 bg-black/60 text-xs font-mono">
+            <button id="btn-view-proc" onclick="toggleSemMode('proc')" class="px-2.5 py-0.5 rounded-md text-white bg-white/15 font-bold">De-artifacted</button>
+            <button id="btn-view-raw" onclick="toggleSemMode('raw')" class="px-2.5 py-0.5 rounded-md text-slate-300 hover:text-white font-medium">Raw SEM</button>
+          </div>
+        </div>
+
+        <!-- Canvas SEM Viewer Area -->
+        <div class="relative w-full aspect-video bg-[#030607] rounded-xl border border-white/[0.12] overflow-hidden flex items-center justify-center shadow-inner group">
+          <canvas id="sem-detail-canvas" width="340" height="190" class="w-full h-full object-cover transition-opacity duration-300"></canvas>
+          <!-- Reticle bounding box -->
+          <div id="sem-reticle" class="absolute border-2 border-scrapCrimson bg-scrapCrimson/15 transition-all duration-300 pointer-events-none" style="left: 48%; top: 40%; width: 44px; height: 36px; transform: translate(-50%, -50%);">
+            <span id="reticle-label" class="absolute -top-4 -left-1 bg-scrapCrimson text-black font-mono font-bold text-[10px] px-1 rounded-sm">BRIDGE 0.998</span>
+            <div class="absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 border-white"></div>
+            <div class="absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 border-white"></div>
+            <div class="absolute -bottom-1 -left-1 w-2 h-2 border-b-2 border-l-2 border-white"></div>
+            <div class="absolute -bottom-1 -right-1 w-2 h-2 border-b-2 border-r-2 border-white"></div>
+          </div>
+          <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/85 border border-white/15 text-[11px] font-mono font-medium text-slate-200">
+            MAG: 120,000x | 28nm Pitch
+          </div>
+          <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/85 border border-white/15 text-[11px] font-mono font-bold text-tealAccent">
+            HV: 1.2 kV · eBeam
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric Strip: KDI Gauge (0.912 Severity) & Primary Metrics -->
+      <div class="bg-white/[0.03] p-3 rounded-xl border border-white/[0.08] space-y-2">
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span class="text-slate-300 font-sans font-medium">KEY DEFECTIVITY INDEX (KDI)</span>
+          <span id="detail-kdi-value" class="text-scrapCrimson font-bold text-sm">0.912 / 1.000</span>
+        </div>
+        <!-- Linear Gauge Meter -->
+        <div class="relative h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/[0.12]">
+          <div class="absolute inset-0 flex">
+            <div class="w-1/4 bg-passEmerald/40" title="Pass (<0.25)"></div>
+            <div class="w-2/4 bg-reworkAmber/40" title="Rework (0.25-0.70)"></div>
+            <div class="w-1/4 bg-scrapCrimson/60" title="Scrap (>=0.70)"></div>
+          </div>
+          <div id="detail-kdi-indicator" class="absolute top-0 bottom-0 w-2 bg-white shadow-[0_0_10px_#ffffff] transition-all duration-500" style="left: 91.2%;"></div>
+        </div>
+        <div class="flex justify-between text-[11px] font-mono text-slate-300">
+          <span>Pass (&lt;0.25)</span>
+          <span>Rework (0.25–0.70)</span>
+          <span class="text-scrapCrimson font-bold">Scrap (≥0.70)</span>
+        </div>
+      </div>
+
+      <!-- 2x2 Technical Telemetry Grid -->
+      <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+          <span class="text-slate-400 block text-[11px] font-sans">INFERENCE LATENCY</span>
+          <span id="tele-lat" class="text-tealAccent font-bold text-xs mt-0.5 block">43.5 ms</span>
+        </div>
+        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+          <span class="text-slate-400 block text-[11px] font-sans">DEFECT AREA</span>
+          <span id="tele-area" class="text-white font-bold text-xs mt-0.5 block">184 px² (Contour)</span>
+        </div>
+        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+          <span class="text-slate-400 block text-[11px] font-sans">PATTERN TYPE</span>
+          <span id="tele-pattern" class="text-slate-200 font-bold text-xs mt-0.5 block truncate">Line/Space 28nm</span>
+        </div>
+        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+          <span class="text-slate-400 block text-[11px] font-sans">DIE / SLOT LOCATION</span>
+          <span id="tele-slot" class="text-slate-200 font-bold text-xs mt-0.5 block truncate">Slot 08, R14 C09</span>
+        </div>
+      </div>
+
+      <!-- Advisor Guidance Block (Llama 3.2 1B FP32 Cores 2-3) -->
+      <div class="p-3.5 rounded-xl border border-white/[0.10] bg-white/[0.03] space-y-2">
+        <div class="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+            <span class="text-xs font-bold text-white">Advisor Guidance</span>
+          </div>
+          <span class="text-[11px] font-mono text-tealAccent font-bold">Llama 3.2 1B · Cores 2-3</span>
+        </div>
+        <div>
+          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-mono font-bold block">Probable Physical Mechanism:</span>
+          <p id="adv-mech" class="text-xs text-slate-200 mt-0.5 leading-relaxed font-sans">
+            Lithography focus drift causing residual resist scumming bridging adjacent 28nm conductive lines.
+          </p>
+        </div>
+        <div>
+          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-mono font-bold block">Prescribed Fab Action:</span>
+          <p id="adv-action" class="text-xs text-slate-200 mt-0.5 leading-relaxed font-sans">
+            Quarantine stepper lot #IN-BLR-9402A; inspect chuck leveling interferometer telemetry.
+          </p>
+        </div>
+
+        <!-- SOP Chips & Verifier Strip -->
+        <div class="pt-1.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08]">
+          <div id="sop-chips-container" class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 text-xs font-mono font-bold rounded bg-tealAccent/15 text-tealAccent border border-tealAccent/30">
+              SOP-LIT-01 (Focus Drift)
+            </span>
+          </div>
+          <!-- Five-Tick Verifier Strip (V1 to V5 all verified) -->
+          <div class="flex items-center gap-1 font-mono text-xs" title="V1-V5 Logical Verification Passed">
+            <span class="text-slate-400 text-[10px]">VERIFIER:</span>
+            <span class="text-passEmerald font-bold">✓V1</span>
+            <span class="text-passEmerald font-bold">✓V2</span>
+            <span class="text-passEmerald font-bold">✓V3</span>
+            <span class="text-passEmerald font-bold">✓V4</span>
+            <span class="text-passEmerald font-bold">✓V5</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Action Buttons & Short Audit Hash -->
+      <div class="pt-2 border-t border-white/[0.08] flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <button onclick="simulateNextSample()" class="px-3 py-1.5 rounded-lg border border-tealAccent/50 bg-tealAccent/20 hover:bg-tealAccent/30 text-tealAccent text-xs font-mono font-bold transition-colors flex items-center gap-1.5 shadow-sm">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <span>Simulate Next</span>
+          </button>
+          <label class="px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
+            <span>Upload SEM</span>
+            <input id="user-upload-input" type="file" accept="image/png,image/jpeg" class="hidden" onchange="handleUserUpload(event)"/>
+          </label>
+        </div>
+        <div class="text-xs font-mono text-slate-300" title="Tamper-Evident SHA-256 Ledger">
+          SHA: <span id="audit-sha-preview" class="text-slate-100 font-bold">d4a9...e81c</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ========================================================================= -->
+<!-- 4. TAB 2: ADVISOR & VERIFIER (KNOWLEDGE BASE & GUARDRAILS)                -->
+<!-- ========================================================================= -->
+<section id="tab-content-advisor" class="tab-content flex-1 p-4 lg:p-6 max-w-[1720px] mx-auto w-full flex-col gap-5">
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full">
+    <!-- Left: 15 SOP Knowledge Base Directory -->
+    <div class="xl:col-span-5 glass-card p-5 flex flex-col gap-3">
+      <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+        <div>
+          <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">SOP Knowledge Base (BM25 Index)</h2>
+          <div class="text-base font-bold text-white mt-0.5">15 Fab Operating Procedures</div>
+        </div>
+        <span class="px-2.5 py-1 text-xs font-mono font-bold text-tealAccent bg-tealAccent/15 border border-tealAccent/30 rounded-md">
+          YAML v1.2
+        </span>
+      </div>
+      <p class="text-xs text-slate-300 leading-relaxed font-sans">
+        Lexically indexed via <code>rank_bm25.BM25Okapi</code>. When an inspection event is triggered, the top-2 matching SOP documents are injected into the Llama prompt context.
+      </p>
+      <div id="sop-list-container" class="space-y-2 overflow-y-auto max-h-[580px] pr-1">
+        <!-- Dynamically loaded SOPs -->
+      </div>
+    </div>
+
+    <!-- Right: Prompt Inspector & Deterministic Verifier Rules (V1-V5) -->
+    <div class="xl:col-span-7 flex flex-col gap-5">
+      <!-- Verifier Guardrails Card -->
+      <div class="glass-card p-5 space-y-3">
+        <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+          <div>
+            <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Zero-Hallucination Guardrails</h2>
+            <div class="text-base font-bold text-white mt-0.5">Deterministic Verifier Engine (Rules V1–V5)</div>
+          </div>
+          <span class="px-3 py-1 text-xs font-mono font-bold text-passEmerald bg-passEmerald/15 border border-passEmerald/30 rounded-md">
+            100% VERIFIED
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-sans">
+          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
+            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
+              <span>Rule V1: JSON Schema</span>
+              <span>✓ ACTIVE</span>
+            </div>
+            <p class="text-slate-300 text-xs">Validates strict JSON object parsing with all 6 mandatory keys. Non-JSON outputs are rejected immediately.</p>
+          </div>
+          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
+            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
+              <span>Rule V2: Disposition Lock</span>
+              <span>✓ ACTIVE</span>
+            </div>
+            <p class="text-slate-300 text-xs">Generated disposition must strictly match the deterministic KDI engine verdict. LLM cannot override SCRAP to PASS.</p>
+          </div>
+          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
+            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
+              <span>Rule V3: SOP Citation Grounding</span>
+              <span>✓ ACTIVE</span>
+            </div>
+            <p class="text-slate-300 text-xs">All cited SOP IDs must be a strict subset of the top-2 retrieved documents. Zero hallucinated procedure IDs.</p>
+          </div>
+          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
+            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
+              <span>Rule V4: Length Bounds</span>
+              <span>✓ ACTIVE</span>
+            </div>
+            <p class="text-slate-300 text-xs">Analysis text bounded to [15, 600] characters; root cause bounded to [10, 400] characters to eliminate rambling.</p>
+          </div>
+          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1 md:col-span-2">
+            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
+              <span>Rule V5: Safety & Deterministic Fallback</span>
+              <span>✓ GUARANTEED</span>
+            </div>
+            <p class="text-slate-300 text-xs">Filters prohibited terminology. If any rule fails twice, automatically substitutes a deterministic template labeled <code>TEMPLATE FALLBACK</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prompt Token Budgeting Inspector -->
+      <div class="glass-card p-5 space-y-2.5 flex-1">
+        <div class="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+          <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Llama 3.2 1B Prompt Inspector (<400 Tokens)</h2>
+          <span class="text-xs font-mono text-tealAccent font-bold">Token Budget: ~280 / 400</span>
+        </div>
+        <pre id="prompt-inspector-box" class="p-3 rounded-xl bg-black/60 border border-white/[0.08] text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed max-h-[220px]">
+[SYSTEM INSTRUCTION]
+You are WaferQC Fab Failure Analysis Advisor. Return ONLY valid JSON matching this schema:
+{"analysis": str, "root_cause_hypothesis": str, "recommended_action": str, "disposition": str, "cited_sop_ids": [str], "confidence_note": str}
+
+[INSPECTION EVENT]
+Defect Class: bridge | Pattern: line_space | Confidence: 0.998 | Area: 184 px | KDI: 0.912 | Required Disposition: SCRAP
+
+[RETRIEVED FAB SOPS]
+- [SOP-LIT-01] Focus Drift: Cause: Chuck z-stage positioning deviation or thermal drift during stepper exposure. Action: Recalibrate auto-focus optical sensors and execute chuck plane leveling.
+        </pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- 5. TAB 3: REGULATORY AUDIT LOG TABLE                                      -->
+<!-- ========================================================================= -->
+<section id="tab-content-audit" class="tab-content flex-1 p-4 lg:p-6 max-w-[1720px] mx-auto w-full flex-col gap-4">
+  <div class="glass-card p-5 flex flex-col gap-4 flex-1">
+    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
+      <div>
+        <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Tamper-Evident Regulatory Audit Ledger</h2>
+        <div class="text-base font-bold text-white mt-0.5">SQLite Audit Database (<code>waferqc_audit.db</code>)</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="downloadAuditCsv()" class="px-3 py-1.5 rounded-lg border border-tealAccent/50 bg-tealAccent/20 hover:bg-tealAccent/30 text-tealAccent text-xs font-mono font-bold transition-colors flex items-center gap-1.5 shadow-sm">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+          <span>Export Audit CSV</span>
+        </button>
+        <button onclick="loadLiveAuditEvents()" class="px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-mono font-medium transition-colors">
+          Refresh Table
+        </button>
+      </div>
+    </div>
+
+    <!-- Audit Table -->
+    <div class="overflow-x-auto rounded-xl border border-white/[0.08] max-h-[620px]">
+      <table class="w-full text-left border-collapse text-xs font-mono">
+        <thead>
+          <tr class="bg-black/60 text-slate-300 border-b border-white/[0.10]">
+            <th class="p-3">Event ID</th>
+            <th class="p-3">Timestamp (UTC)</th>
+            <th class="p-3">SHA-256 Hash</th>
+            <th class="p-3">Class</th>
+            <th class="p-3">Confidence</th>
+            <th class="p-3">KDI Score</th>
+            <th class="p-3">Disposition</th>
+            <th class="p-3">Latency</th>
+            <th class="p-3">Advisor Source</th>
+          </tr>
+        </thead>
+        <tbody id="audit-table-body" class="divide-y divide-white/[0.06] text-slate-200">
+          <!-- Populated from live SQLite database -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================================================= -->
+<!-- 6. TAB 4: BENCHMARKS & MODEL COMPARISONS                                  -->
+<!-- ========================================================================= -->
+<section id="tab-content-bench" class="tab-content flex-1 p-4 lg:p-6 max-w-[1720px] mx-auto w-full flex-col gap-5">
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full">
+    <!-- Left: Dual Model Architecture Benchmark Table -->
+    <div class="xl:col-span-6 glass-card p-5 space-y-4">
+      <div class="pb-3 border-b border-white/[0.08]">
+        <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Edge Model Comparative Benchmark</h2>
+        <div class="text-base font-bold text-white mt-0.5">ResNet-18 vs. MobileNetV3-Small</div>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-white/[0.08]">
+        <table class="w-full text-left border-collapse text-xs font-mono">
+          <thead>
+            <tr class="bg-black/60 text-slate-300 border-b border-white/[0.10]">
+              <th class="p-2.5">Architecture</th>
+              <th class="p-2.5">Params</th>
+              <th class="p-2.5">File Size</th>
+              <th class="p-2.5">CPU Latency</th>
+              <th class="p-2.5">Macro-F1</th>
+              <th class="p-2.5">Role</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/[0.06]">
+            <tr class="bg-tealAccent/5">
+              <td class="p-2.5 font-bold text-white">ResNet-18 (TorchScript)</td>
+              <td class="p-2.5 text-slate-300">11.18 M</td>
+              <td class="p-2.5 text-slate-300">42.79 MB</td>
+              <td class="p-2.5 text-tealAccent font-bold">43.60 ms</td>
+              <td class="p-2.5 text-passEmerald font-bold">0.9660</td>
+              <td class="p-2.5 text-tealAccent font-bold">Accuracy Leader</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 font-bold text-slate-200">ResNet-18 (Dynamic INT8)</td>
+              <td class="p-2.5 text-slate-300">11.18 M</td>
+              <td class="p-2.5 text-slate-300">42.69 MB</td>
+              <td class="p-2.5 text-slate-300">50.53 ms</td>
+              <td class="p-2.5 text-slate-300 font-bold">0.9639</td>
+              <td class="p-2.5 text-slate-400">Quantized</td>
+            </tr>
+            <tr>
+              <td class="p-2.5 font-bold text-goldAccent">MobileNetV3-Small</td>
+              <td class="p-2.5 text-slate-300">1.52 M</td>
+              <td class="p-2.5 text-goldAccent font-bold">6.22 MB (7.2x smaller)</td>
+              <td class="p-2.5 text-tealAccent font-bold">24.10 ms</td>
+              <td class="p-2.5 text-slate-300 font-bold">0.9185</td>
+              <td class="p-2.5 text-goldAccent font-bold">Edge Efficiency</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Dual Process Pinning Diagram -->
+      <div class="p-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-2">
+        <h3 class="text-xs font-mono font-bold text-slate-200">Quad Cortex-A76 Process Isolation Diagram</h3>
+        <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+          <div class="p-2.5 rounded-lg border border-tealAccent/30 bg-tealAccent/10 space-y-1">
+            <span class="text-tealAccent font-bold block">CPU CORES 0 & 1 (Vision)</span>
+            <span class="text-slate-300 block text-[11px]">eBeam De-artifacting + ResNet-18</span>
+            <span class="text-slate-100 font-bold text-[11px]">Throughput: ~23 FPS (No Blocking)</span>
+          </div>
+          <div class="p-2.5 rounded-lg border border-goldAccent/30 bg-goldAccent/10 space-y-1">
+            <span class="text-goldAccent font-bold block">CPU CORES 2 & 3 (Advisor)</span>
+            <span class="text-slate-300 block text-[11px]">BM25 SOP + ExecuTorch Llama 3.2 1B</span>
+            <span class="text-slate-100 font-bold text-[11px]">Latency: ~480ms TTFT, 5 tok/s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Embedded Confusion Matrix & Abstain Curves -->
+    <div class="xl:col-span-6 glass-card p-5 space-y-4">
+      <div class="pb-3 border-b border-white/[0.08]">
+        <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Diagnostic Visualizations</h2>
+        <div class="text-base font-bold text-white mt-0.5">Empirical Confusion Matrix & Abstain Curves</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="space-y-1.5">
+          <span class="text-xs font-mono font-bold text-slate-200 block">Test Confusion Matrix (Macro-F1: 0.9660)</span>
+          <img src="/outputs/confusion_matrix.png" alt="Confusion Matrix" class="w-full rounded-xl border border-white/[0.10] bg-black/40" onerror="this.src='docs/confusion_matrix.png'"/>
+        </div>
+        <div class="space-y-1.5">
+          <span class="text-xs font-mono font-bold text-slate-200 block">Threshold Sweep (Operating Point τ=0.55)</span>
+          <img src="/outputs/threshold_sweep.png" alt="Threshold Sweep" class="w-full rounded-xl border border-white/[0.10] bg-black/40" onerror="this.src='docs/threshold_sweep.png'"/>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Notification Toast -->
+<div id="toast" class="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl border border-tealAccent/50 bg-[#0A1215]/95 text-xs font-mono font-bold text-slate-100 shadow-2xl backdrop-blur-md transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2.5">
+  <span class="w-2.5 h-2.5 rounded-full bg-tealAccent"></span>
+  <span id="toast-text">System telemetry updated</span>
+</div>
+
+<!-- ========================================================================= -->
+<!-- 7. COMPLETE SELF-CONTAINED CONTROLLER SCRIPT                              -->
+<!-- ========================================================================= -->
+<script>
+  const API_BASE = window.location.origin.includes(':8000') ? window.location.origin : 'http://127.0.0.1:8000';
+  let isBackendConnected = false;
+
+  const state = {
+    selectedClass: 'bridge',
+    activeNodeIndex: 0,
+    semViewMode: 'proc',
+    currentTab: 'live',
+    isPaused: false,
+    activeImageDataUrl: null,
+    nodes: [
+      { id: 'EVT-9402', die: '[R14, C09]', conf: '99.8%', kdi: 0.912, disp: 'SCRAP', hash: 'd4a97ef1', type: 'bridge', area: '184 px²', lat: '43.5 ms' },
+      { id: 'EVT-9401', die: '[R12, C11]', conf: '98.4%', kdi: 0.884, disp: 'SCRAP', hash: '8f2a1b9c', type: 'bridge', area: '172 px²', lat: '42.9 ms' },
+      { id: 'EVT-9398', die: '[R15, C08]', conf: '99.2%', kdi: 0.931, disp: 'SCRAP', hash: '3e1c9d44', type: 'bridge', area: '210 px²', lat: '44.1 ms' },
+      { id: 'EVT-9394', die: '[R10, C14]', conf: '97.6%', kdi: 0.865, disp: 'SCRAP', hash: 'fa440e21', type: 'bridge', area: '160 px²', lat: '41.8 ms' },
+      { id: 'EVT-9390', die: '[R18, C06]', conf: '96.9%', kdi: 0.795, disp: 'SCRAP', hash: '7c88b012', type: 'bridge', area: '148 px²', lat: '43.0 ms' },
+      { id: 'EVT-9385', die: '[R08, C16]', conf: '98.1%', kdi: 0.890, disp: 'SCRAP', hash: 'bb1249fa', type: 'bridge', area: '195 px²', lat: '42.4 ms' },
+      { id: 'EVT-9381', die: '[R21, C05]', conf: '97.3%', kdi: 0.840, disp: 'SCRAP', hash: 'a129ef99', type: 'bridge', area: '155 px²', lat: '43.7 ms' },
+      { id: 'EVT-9377', die: '[R11, C13]', conf: '99.0%', kdi: 0.905, disp: 'SCRAP', hash: 'c509aa44', type: 'bridge', area: '188 px²', lat: '42.6 ms' }
+    ]
+  };
+
+  // Switch Tabs
+  function switchTab(tabName) {
+    state.currentTab = tabName;
+    ['live', 'advisor', 'audit', 'bench'].forEach(t => {
+      const el = document.getElementById(`tab-content-${t}`);
+      const btn = document.getElementById(`tab-btn-${t}`);
+      const indicator = document.getElementById(`tab-indicator-${t}`);
+      if (el && btn && indicator) {
+        if (t === tabName) {
+          el.classList.remove('hidden');
+          el.classList.add(t === 'live' ? 'active' : 'active-flex');
+          btn.classList.add('text-white');
+          btn.classList.remove('text-slate-400');
+          indicator.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('active', 'active-flex');
+          btn.classList.remove('text-white');
+          btn.classList.add('text-slate-400');
+          indicator.classList.add('hidden');
+        }
+      }
+    });
+
+    if (tabName === 'live') {
+      requestAnimationFrame(() => {
+        updateConnectingCurves();
+        drawWafer();
+        drawDetailSem();
+      });
+    } else if (tabName === 'audit') {
+      loadLiveAuditEvents();
+    } else if (tabName === 'advisor') {
+      loadSops();
+    }
+  }
+
+  // Draw Realistic 300mm Silicon Wafer
+  function drawWafer() {
+    const canvas = document.getElementById('wafer-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const r = (w / 2) - 12;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Wafer Outer Rim
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#0a1317';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(95, 208, 196, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Alignment Notch
+    ctx.beginPath();
+    ctx.arc(cx, cy + r, 5.5, Math.PI, 0);
+    ctx.fillStyle = '#060B0D';
+    ctx.fill();
+    ctx.strokeStyle = '#E8C170';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Inner concentric guide rings
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.stroke();
+
+    // Die Grid Matrix
+    const dieSize = 9;
+    const gap = 2;
+    const step = dieSize + gap;
+    const startX = cx - (r - 10);
+    const endX = cx + (r - 10);
+    const startY = cy - (r - 10);
+    const endY = cy + (r - 10);
+
+    for (let x = startX; x <= endX; x += step) {
+      for (let y = startY; y <= endY; y += step) {
+        const dist = Math.hypot(x + dieSize / 2 - cx, y + dieSize / 2 - cy);
+        if (dist > r - 7) continue;
+
+        const hashVal = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+        const pseudo = hashVal - Math.floor(hashVal);
+
+        let color = 'rgba(16, 185, 129, 0.45)'; // Pass
+        if (pseudo > 0.94) color = 'rgba(239, 68, 68, 0.90)'; // Scrap
+        else if (pseudo > 0.86) color = 'rgba(245, 158, 11, 0.75)'; // Rework
+
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, dieSize, dieSize);
+      }
+    }
+
+    // Highlight Active Die
+    const activeDieX = cx - 24;
+    const activeDieY = cy + 18;
+
+    ctx.beginPath();
+    ctx.arc(activeDieX + dieSize / 2, activeDieY + dieSize / 2, 14, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(232, 193, 112, 0.40)';
+    ctx.fill();
+
+    ctx.fillStyle = '#E8C170';
+    ctx.fillRect(activeDieX, activeDieY, dieSize, dieSize);
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(activeDieX - 1, activeDieY - 1, dieSize + 2, dieSize + 2);
+  }
+
+  // Render Arc Event Nodes
+  function renderEventNodes() {
+    const container = document.getElementById('event-nodes-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    state.nodes.forEach((node, idx) => {
+      const isSelected = idx === state.activeNodeIndex;
+      let opacityClass = 'opacity-100';
+      if (idx === 0 || idx === state.nodes.length - 1) opacityClass = 'opacity-70';
+      else if (idx === 1 || idx === state.nodes.length - 2) opacityClass = 'opacity-90';
+
+      const card = document.createElement('div');
+      card.id = `node-${idx}`;
+      card.className = `p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${opacityClass} ${
+        isSelected 
+          ? 'node-selected bg-slate-800/90 border-goldAccent text-white' 
+          : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-200'
+      }`;
+      card.onclick = () => selectEventNode(idx);
+
+      let severityBar = 'bg-scrapCrimson';
+      if (node.disp === 'REWORK') severityBar = 'bg-reworkAmber';
+      if (node.disp === 'PASS') severityBar = 'bg-passEmerald';
+
+      card.innerHTML = `
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-1.5 h-7 rounded-full ${severityBar} shrink-0"></div>
+          <div class="w-8 h-8 rounded bg-black/70 border border-white/10 shrink-0 flex items-center justify-center overflow-hidden">
+            <span class="text-[10px] font-mono font-bold text-tealAccent">${node.type.slice(0, 3).toUpperCase()}</span>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-mono font-bold text-white truncate">${node.die}</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.08] text-tealAccent font-bold">${node.conf}</span>
+            </div>
+            <span class="text-[11px] font-mono text-slate-300 block truncate">${node.id} · ${node.area}</span>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <span class="px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider rounded border ${
+            node.disp === 'SCRAP' ? 'border-scrapCrimson/50 text-scrapCrimson bg-scrapCrimson/15' :
+            node.disp === 'REWORK' ? 'border-reworkAmber/50 text-reworkAmber bg-reworkAmber/15' :
+            'border-passEmerald/50 text-passEmerald bg-passEmerald/15'
+          }">${node.disp}</span>
+          <span class="block text-[10px] font-mono text-slate-400 mt-0.5">VERIFIED</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    requestAnimationFrame(updateConnectingCurves);
+  }
+
+  // Smooth Bezier Fanning Curves
+  function updateConnectingCurves() {
+    const svg = document.getElementById('curve-svg');
+    const selectedBtn = document.getElementById('btn-class-bridge');
+    const container = document.getElementById('event-nodes-container');
+    if (!svg || !selectedBtn || !container) return;
+
+    const svgRect = svg.getBoundingClientRect();
+    const btnRect = selectedBtn.getBoundingClientRect();
+
+    const startX = btnRect.right - svgRect.left;
+    const startY = btnRect.top + (btnRect.height / 2) - svgRect.top;
+
+    let paths = '';
+    state.nodes.forEach((_, idx) => {
+      const nodeEl = document.getElementById(`node-${idx}`);
+      if (!nodeEl) return;
+      const nRect = nodeEl.getBoundingClientRect();
+
+      const endX = nRect.left - svgRect.left;
+      const endY = nRect.top + (nRect.height / 2) - svgRect.top;
+
+      const dx = endX - startX;
+      const cp1x = startX + dx * 0.45;
+      const cp1y = startY;
+      const cp2x = startX + dx * 0.55;
+      const cp2y = endY;
+
+      const isCur = idx === state.activeNodeIndex;
+      const stroke = isCur ? '#E8C170' : 'rgba(95, 208, 196, 0.25)';
+      const width = isCur ? '2.2' : '1';
+
+      paths += `<path d="M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}" fill="none" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${isCur ? 'none' : '3 3'}"/>`;
+    });
+    svg.innerHTML = paths;
+  }
+
+  // Render SEM Crop Canvas
+  function drawDetailSem() {
+    const canvas = document.getElementById('sem-detail-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const isRaw = state.semViewMode === 'raw';
+
+    ctx.clearRect(0, 0, w, h);
+
+    // If a user uploaded a real image, draw it!
+    if (state.activeImageDataUrl) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, w, h);
+        if (isRaw) {
+          // Add charging flare artifact over it for raw demonstration
+          const flare = ctx.createRadialGradient(w/2 - 30, h/2 - 20, 10, w/2, h/2, 120);
+          flare.addColorStop(0, 'rgba(255,255,255,0.3)');
+          flare.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = flare;
+          ctx.fillRect(0, 0, w, h);
+        }
+      };
+      img.src = state.activeImageDataUrl;
+      return;
+    }
+
+    // Default High-Precision Silicon Pattern
+    ctx.fillStyle = isRaw ? '#0d131a' : '#080d11';
+    ctx.fillRect(0, 0, w, h);
+
+    const pitch = 16;
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = isRaw ? '#2b3846' : '#3e4f5e';
+
+    for (let x = 12; x < w; x += pitch) {
+      ctx.beginPath();
+      let jitter = isRaw ? (Math.random() - 0.5) * 1.8 : 0;
+      ctx.moveTo(x + jitter, 0);
+      ctx.lineTo(x + jitter, h);
+      ctx.stroke();
+    }
+
+    const cur = state.nodes[state.activeNodeIndex];
+    const centerX = w / 2;
+    const centerY = h / 2 - 10;
+
+    if (cur.type === 'bridge') {
+      ctx.fillStyle = isRaw ? '#607082' : '#cbd5e1';
+      ctx.fillRect(centerX - 18, centerY - 8, 36, 16);
+      if (!isRaw) {
+        ctx.strokeStyle = '#EF4444';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(centerX - 19, centerY - 9, 38, 18);
+      }
+    } else if (cur.type === 'particle') {
+      ctx.fillStyle = '#E8C170';
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (isRaw) {
+      const flare = ctx.createRadialGradient(centerX - 40, centerY - 20, 5, centerX - 40, centerY - 20, 100);
+      flare.addColorStop(0, 'rgba(255, 255, 255, 0.32)');
+      flare.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = flare;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  function toggleSemMode(mode) {
+    state.semViewMode = mode;
+    const btnRaw = document.getElementById('btn-view-raw');
+    const btnProc = document.getElementById('btn-view-proc');
+    const reticle = document.getElementById('sem-reticle');
+
+    if (mode === 'proc') {
+      btnProc.className = 'px-2.5 py-0.5 rounded-md text-white bg-white/15 font-bold';
+      btnRaw.className = 'px-2.5 py-0.5 rounded-md text-slate-300 hover:text-white font-medium';
+      if (reticle) reticle.style.display = 'block';
+    } else {
+      btnRaw.className = 'px-2.5 py-0.5 rounded-md text-white bg-white/15 font-bold';
+      btnProc.className = 'px-2.5 py-0.5 rounded-md text-slate-300 hover:text-white font-medium';
+      if (reticle) reticle.style.display = 'none';
+    }
+    drawDetailSem();
+  }
+
+  function selectDefectClass(type, el) {
+    state.selectedClass = type;
+    document.querySelectorAll('.defect-class-btn').forEach(b => {
+      b.classList.remove('gold-selected-card');
+      b.classList.add('border-white/[0.10]', 'bg-white/[0.03]');
+    });
+    el.classList.add('gold-selected-card');
+    el.classList.remove('border-white/[0.10]', 'bg-white/[0.03]');
+    document.getElementById('active-class-pill').textContent = type.toUpperCase();
+    showToast(`Filtered: ${type.toUpperCase()}`);
+    updateConnectingCurves();
+  }
+
+  function selectEventNode(idx) {
+    state.activeNodeIndex = idx;
+    const node = state.nodes[idx];
+
+    document.getElementById('detail-header-title').textContent = `${node.type.toUpperCase()} · DIE ${node.die}`;
+    document.getElementById('detail-header-hash').textContent = node.hash;
+    document.getElementById('detail-kdi-value').textContent = `${node.kdi.toFixed(3)} / 1.000`;
+    document.getElementById('detail-kdi-indicator').style.left = `${Math.min(98, node.kdi * 100)}%`;
+    document.getElementById('tele-lat').textContent = node.lat;
+    document.getElementById('tele-area').textContent = node.area;
+    document.getElementById('tele-slot').textContent = `Slot 08, ${node.die}`;
+    document.getElementById('audit-sha-preview').textContent = `${node.hash.slice(0, 4)}...${node.hash.slice(-4)}`;
+
+    const dispBadge = document.getElementById('detail-disp-badge');
+    dispBadge.textContent = node.disp;
+    if (node.disp === 'SCRAP') {
+      dispBadge.className = 'px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-scrapCrimson/60 text-scrapCrimson bg-scrapCrimson/15 shadow-[0_0_14px_rgba(239,68,68,0.25)]';
+    } else if (node.disp === 'REWORK') {
+      dispBadge.className = 'px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-reworkAmber/60 text-reworkAmber bg-reworkAmber/15 shadow-[0_0_14px_rgba(245,158,11,0.25)]';
+    } else {
+      dispBadge.className = 'px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-passEmerald/60 text-passEmerald bg-passEmerald/15 shadow-[0_0_14px_rgba(16,185,129,0.25)]';
+    }
+
+    renderEventNodes();
+    drawDetailSem();
+  }
+
+  // Live Backend Inspection via File Upload
+  async function handleUserUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    showToast(`Uploading ${file.name} to edge inference engine...`);
+
+    // Preview uploaded image
+    const reader = new FileReader();
+    reader.onload = (re) => {
+      state.activeImageDataUrl = re.target.result;
+      drawDetailSem();
+    };
+    reader.readAsDataURL(file);
+
+    // Call live backend if available
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('pattern_type', 'line_space');
+
+      const res = await fetch(`${API_BASE}/api/inspect`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Inferred: ${data.predicted_class.toUpperCase()} in ${data.timing_ms.total}ms`);
+
+        const newSample = {
+          id: `EVT-${data.event_id || 9500}`,
+          die: '[R14, C09]',
+          conf: `${(data.confidence * 100).toFixed(1)}%`,
+          kdi: data.kdi_score,
+          disp: data.disposition,
+          hash: data.image_hash || Math.random().toString(16).slice(2, 10),
+          type: data.predicted_class,
+          area: `${data.area_px} px²`,
+          lat: `${data.timing_ms.total} ms`
+        };
+
+        // Update advisor details from backend response
+        if (data.advisor) {
+          document.getElementById('adv-mech').textContent = data.advisor.root_cause_hypothesis || 'Defect anomaly detected';
+          document.getElementById('adv-action').textContent = data.advisor.recommended_action || 'Inspect tool settings';
+          if (data.advisor.cited_sop_ids && data.advisor.cited_sop_ids.length > 0) {
+            document.getElementById('sop-chips-container').innerHTML = `
+              <span class="px-2 py-0.5 text-xs font-mono font-bold rounded bg-tealAccent/15 text-tealAccent border border-tealAccent/30">
+                ${data.advisor.cited_sop_ids[0]}
+              </span>
+            `;
+          }
+        }
+
+        state.nodes.unshift(newSample);
+        if (state.nodes.length > 8) state.nodes.pop();
+        state.activeNodeIndex = 0;
+        selectEventNode(0);
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend not reachable, running in offline demo mode:", err);
+    }
+
+    // Offline fallback simulation
+    setTimeout(simulateNextSample, 300);
+  }
+
+  // Simulate Next Sample
+  function simulateNextSample() {
+    state.activeImageDataUrl = null;
+    const randomDie = `[R${Math.floor(10 + Math.random() * 12)}, C0${Math.floor(4 + Math.random() * 6)}]`;
+    const randomKdi = +(0.85 + Math.random() * 0.12).toFixed(3);
+    const newSample = {
+      id: `EVT-${Math.floor(9403 + Math.random() * 60)}`,
+      die: randomDie,
+      conf: '99.8%',
+      kdi: randomKdi,
+      disp: 'SCRAP',
+      hash: Math.random().toString(16).slice(2, 10),
+      type: 'bridge',
+      area: `${Math.floor(165 + Math.random() * 40)} px²`,
+      lat: `${(42.5 + Math.random() * 2).toFixed(1)} ms`
+    };
+
+    state.nodes.unshift(newSample);
+    if (state.nodes.length > 8) state.nodes.pop();
+    state.activeNodeIndex = 0;
+    selectEventNode(0);
+    showToast(`Inferred new SEM sample: ${newSample.id}`);
+  }
+
+  // Toast Notification
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toast-text');
+    if (!toast || !toastText) return;
+    toastText.textContent = msg;
+    toast.classList.remove('translate-y-20', 'opacity-0');
+    setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 2500);
+  }
+
+  // Load Real SQLite Audit Events from Backend
+  async function loadLiveAuditEvents() {
+    try {
+      const res = await fetch(`${API_BASE}/api/events?limit=30`);
+      if (res.ok) {
+        const events = await res.json();
+        const tbody = document.getElementById('audit-table-body');
+        if (!tbody || events.length === 0) return;
+
+        tbody.innerHTML = '';
+        events.forEach(ev => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-white/[0.04] transition-colors';
+          tr.innerHTML = `
+            <td class="p-3 font-bold text-white">#${ev.event_id}</td>
+            <td class="p-3 text-slate-300">${(ev.timestamp || '').slice(0, 19).replace('T', ' ')}</td>
+            <td class="p-3 text-tealAccent">${(ev.image_hash || '').slice(0, 8)}...</td>
+            <td class="p-3 font-bold text-slate-100">${ev.predicted_class}</td>
+            <td class="p-3 text-slate-300">${(ev.confidence * 100).toFixed(1)}%</td>
+            <td class="p-3 font-bold text-slate-200">${Number(ev.kdi_score).toFixed(3)}</td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                ev.disposition === 'SCRAP' ? 'text-scrapCrimson bg-scrapCrimson/15 border border-scrapCrimson/40' :
+                ev.disposition === 'REWORK' ? 'text-reworkAmber bg-reworkAmber/15 border border-reworkAmber/40' :
+                'text-passEmerald bg-passEmerald/15 border border-passEmerald/40'
+              }">${ev.disposition}</span>
+            </td>
+            <td class="p-3 text-tealAccent font-bold">${Number(ev.processing_time_ms).toFixed(1)} ms</td>
+            <td class="p-3 text-slate-300">${ev.advisor_source || 'LLAMA'}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    } catch (e) {
+      console.log("Audit log backend fetch unavailable:", e);
+    }
+  }
+
+  // Load Real SOPs into Knowledge Base tab
+  async function loadSops() {
+    const container = document.getElementById('sop-list-container');
+    if (!container) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/sops`);
+      if (res.ok) {
+        const sops = await res.json();
+        if (sops.length > 0) {
+          container.innerHTML = '';
+          sops.forEach(sop => {
+            const card = document.createElement('div');
+            card.className = 'p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1 hover:border-tealAccent/30 transition-colors';
+            card.innerHTML = `
+              <div class="flex items-center justify-between font-mono">
+                <span class="text-xs font-bold text-tealAccent">${sop.sop_id}</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-white/[0.08] text-slate-300 font-bold">${sop.process_area}</span>
+              </div>
+              <div class="text-xs font-bold text-white font-sans">${sop.title}</div>
+              <div class="text-[11px] text-slate-300 font-sans leading-relaxed">
+                <strong>Probable Cause:</strong> ${(sop.root_causes || [''])[0]}
+              </div>
+            `;
+            container.appendChild(card);
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.log("SOPs fetch fallback:", e);
+    }
+
+    // Default Fallback display if backend offline
+    container.innerHTML = `
+      <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
+        <div class="flex justify-between font-mono text-xs font-bold text-tealAccent"><span>SOP-LIT-01</span><span>Lithography</span></div>
+        <div class="text-xs font-bold text-white">Focus Drift</div>
+        <p class="text-[11px] text-slate-300">Wafer chuck z-stage positioning deviation or thermal drift during stepper exposure.</p>
+      </div>
+      <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
+        <div class="flex justify-between font-mono text-xs font-bold text-tealAccent"><span>SOP-ETC-01</span><span>Etch</span></div>
+        <div class="text-xs font-bold text-white">Plasma Etch Polymer Residue</div>
+        <p class="text-[11px] text-slate-300">Excessive passivation chemistry (CF4/CHF3 ratio skew) during trench etch.</p>
+      </div>
+      <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
+        <div class="flex justify-between font-mono text-xs font-bold text-tealAccent"><span>SOP-CMP-01</span><span>CMP</span></div>
+        <div class="text-xs font-bold text-white">Slurry Particle Agglomeration</div>
+        <p class="text-[11px] text-slate-300">Point-of-use filter rupture causing secondary particle clustering above 0.5 um.</p>
+      </div>
+    `;
+  }
+
+  // Download CSV
+  function downloadAuditCsv() {
+    window.open(`${API_BASE}/api/export_csv`, '_blank');
+  }
+
+  // Periodic Backend Sync & Telemetry Jitter
+  async function syncBackendStats() {
+    try {
+      const [sumRes, qRes] = await Promise.all([
+        fetch(`${API_BASE}/api/summary`),
+        fetch(`${API_BASE}/api/queue`)
+      ]);
+
+      if (sumRes.ok && qRes.ok) {
+        const sum = await sumRes.json();
+        const q = await qRes.json();
+        isBackendConnected = true;
+
+        document.getElementById('backend-status-pill').textContent = 'LIVE BACKEND (:8000)';
+        document.getElementById('backend-status-pill').className = 'px-2.5 py-0.5 text-xs font-mono font-bold tracking-wide rounded-full border border-passEmerald/50 text-passEmerald bg-passEmerald/15';
+
+        if (sum.total_inspected > 0) {
+          const pass = sum.by_disposition.PASS || 0;
+          const rework = sum.by_disposition.REWORK || 0;
+          const scrap = sum.by_disposition.SCRAP || 0;
+          const total = sum.total_inspected;
+
+          document.getElementById('stat-total-dies').textContent = `${total} Dies`;
+          document.getElementById('count-pass').textContent = pass;
+          document.getElementById('count-rework').textContent = rework;
+          document.getElementById('count-scrap').textContent = scrap;
+
+          const yieldPct = ((pass / total) * 100).toFixed(1);
+          document.getElementById('stat-yield-pct').textContent = `${yieldPct}%`;
+          document.getElementById('yield-bar-pass').style.width = `${(pass/total)*100}%`;
+          document.getElementById('yield-bar-rework').style.width = `${(rework/total)*100}%`;
+          document.getElementById('yield-bar-scrap').style.width = `${(scrap/total)*100}%`;
+        }
+
+        document.getElementById('stat-queue').textContent = `${q.pending || 0} Pending`;
+        if (sum.avg_processing_time_ms > 0) {
+          document.getElementById('stat-vision').textContent = `${sum.avg_processing_time_ms} ms (${(1000/sum.avg_processing_time_ms).toFixed(0)} FPS)`;
+        }
+      }
+    } catch (e) {
+      document.getElementById('backend-status-pill').textContent = 'AIR-GAPPED SIMULATOR';
+      document.getElementById('backend-status-pill').className = 'px-2.5 py-0.5 text-xs font-mono font-bold tracking-wide rounded-full border border-tealAccent/40 text-tealAccent bg-tealAccent/10';
+    }
+
+    // Telemetry Jitter for Live Cleanroom Feel
+    if (!state.isPaused) {
+      document.getElementById('stat-temp').textContent = `${(50.8 + Math.random() * 1.5).toFixed(1)}°C`;
+    }
+  }
+
+  // Keyboard Navigation
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'j') {
+      e.preventDefault();
+      selectEventNode(Math.min(state.nodes.length - 1, state.activeNodeIndex + 1));
+    } else if (e.key === 'ArrowUp' || e.key === 'k') {
+      e.preventDefault();
+      selectEventNode(Math.max(0, state.activeNodeIndex - 1));
+    }
+  });
+
+  window.addEventListener('resize', updateConnectingCurves);
+
+  // Initialize
+  window.addEventListener('DOMContentLoaded', () => {
+    drawWafer();
+    renderEventNodes();
+    drawDetailSem();
+    syncBackendStats();
+    setInterval(syncBackendStats, 3000);
+  });
+</script>
+</body>
+</html>

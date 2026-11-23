@@ -61,12 +61,11 @@ def remove_charging_flare(img, kernel_size=35):
     return corrected, background
 
 def test_deartifact():
-    from sem_generator import generate_sample
-    art_dir = r"C:\Users\LENOVO\.gemini\antigravity\brain\4aff4f6d-7c55-4423-a4f9-c9370e211090"
+    from sem_generator_v2 import generate_sample_v2
     
     # Generate an image with particle, heavy charging, and scan jitter
-    raw_img, label, bbox, mask, nuisance = generate_sample(
-        defect_type="particle", pattern_type="dram_capsule", with_nuisance=True
+    raw_img, label, bbox, mask = generate_sample_v2(
+        defect_type="particle", pattern_type="contact_matrix", artifact="charging"
     )
     
     # Step 1: Remove scan jitter

@@ -33,9 +33,9 @@ def compute_kdi(class_probs: Dict[str, float]) -> float:
     kdi = 1.0 - prod_survival
     return max(0.0, min(1.0, kdi))
 
-def get_disposition(kdi: float, class_probs: Dict[str, float]) -> str:
+def get_disposition(kdi: float, class_probs: Dict[str, float], area_px: int = 0) -> str:
     """
-    Determines wafer disposition based on KDI score with critical overrides.
+    Determines wafer disposition based on KDI score, critical overrides, and defect geometry.
     """
     # Critical Override 1: High confidence bridge (short circuit hazard)
     if class_probs.get("bridge", 0.0) >= 0.70:
@@ -43,6 +43,10 @@ def get_disposition(kdi: float, class_probs: Dict[str, float]) -> str:
 
     # Critical Override 2: High confidence scratch (structural multi-die break)
     if class_probs.get("scratch", 0.0) >= 0.80:
+        return "SCRAP"
+
+    # Critical Override 3: Macro-particulate excursion (> 600 px fatal blockage)
+    if class_probs.get("particle", 0.0) >= 0.65 and area_px >= 600:
         return "SCRAP"
 
     # Standard KDI Thresholds
@@ -62,7 +66,7 @@ class KDISeverityEngine:
 
     def assess(self, class_probs: Dict[str, float], area_px: int = 0, pattern_type: str = "line_space") -> Dict[str, Any]:
         kdi = compute_kdi(class_probs)
-        disposition = get_disposition(kdi, class_probs)
+        disposition = get_disposition(kdi, class_probs, area_px=area_px)
 
         # Identify dominant class
         dom_cls = max(class_probs.items(), key=lambda kv: kv[1])[0]
@@ -77,6 +81,9 @@ class KDISeverityEngine:
         elif class_probs.get("scratch", 0.0) >= 0.80 and kdi < self.thresholds["SCRAP"]:
             override = True
             override_reason = f"Critical Scratch Override (p={class_probs.get('scratch'):.2f} >= 0.80)"
+        elif class_probs.get("particle", 0.0) >= 0.65 and area_px >= 600 and kdi < self.thresholds["SCRAP"]:
+            override = True
+            override_reason = f"Macro-Particle Excursion Override (area={area_px}px >= 600px)"
 
         return {
             "kdi": round(kdi, 4),

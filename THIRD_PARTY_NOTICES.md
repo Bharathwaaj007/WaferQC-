@@ -1,37 +1,52 @@
-# Third-Party Notices & Attribution
+# Third-Party Notices and Legal Attributions
 
-This project incorporates, references, or builds upon the following open resources, models, and research frameworks:
+This project, **WaferQC**, was developed for the **Bharat AI-SoC Student Challenge 2026-27**. It incorporates and references the following open-source frameworks, architectures, datasets, and models:
 
 ---
 
-## 1. Meta Llama 3.2 1B Instruct
-- **Model:** Llama 3.2 1B Instruct
-- **Origin:** Meta AI Research
-- **License:** Llama 3.2 Community License
+### 1. Meta Llama 3.2 1B Instruct
+- **Model:** Llama-3.2-1B-Instruct
+- **Licensor:** Meta Platforms, Inc.
+- **License:** Meta Llama Community License Agreement
 - **Attribution Notice:** *"Built with Llama"*
-- **Compliance:** Used exclusively for edge on-device structured fab root-cause advisory generation. Prompt and response schemas are deterministically verified and bounded.
+- **Usage:** Structured failure-analysis advisory generation running on-device under strict prompt budgeting (<400 tokens) and deterministic guardrails.
 
 ---
 
-## 2. Carinthia SEM Defect Dataset (Reference Benchmark)
-- **Dataset:** Carinthia SEM Wafer Defect Dataset & Carinthia-S
+### 2. Infineon Carinthia SEM Dataset
 - **Authors:** Infineon Technologies Austria AG / University of Klagenfurt
-- **DOI / Record:** Zenodo DOI 10.5281/zenodo.10715190 / Record 16895427
+- **DOI / Record:** Zenodo DOI [10.5281/zenodo.10715190](https://doi.org/10.5281/zenodo.10715190)
 - **License:** Creative Commons Attribution 4.0 International (CC BY 4.0)
-- **Attribution:** Used as an open-access empirical domain reference for unstructured silicon SEM defect characteristics and noise baseline comparison.
+- **Attribution Notice:** Used as real-world SEM noise, charging, and unstructured defect distribution benchmark reference.
 
 ---
 
-## 3. Applied Materials (AMAT) SEM Review Concepts
-- **Principles:** SEM Scan-Line Jitter Compensation & Electrostatic Charging Flare Suppression.
-- **Reference:** High-throughput automated e-beam review (EBR) and nuisance filtering architectures (AMAT Slide 1 review paradigms).
-- **Implementation:** Custom open-source Python implementation in `deartifact.py` using 1D phase cross-correlation and morphological background subtraction.
+### 3. Applied Materials (AMAT) Defect Review Architecture
+- **Concept Reference:** AMAT eBeam Review & De-artifacting (Slide 1 principles: row-phase jitter compensation, morphological charging flare suppression).
+- **Usage:** Preprocessing algorithm before neural feature extraction to prevent nuisance-induced misclassifications.
 
 ---
 
-## 4. Open-Source Libraries
-- **PyTorch & Torchvision:** BSD-3-Clause License (Meta Platforms, Inc.)
-- **OpenCV (Open Source Computer Vision Library):** Apache 2.0 License (OpenCV team)
-- **FastAPI:** MIT License (Sebastián Ramírez)
-- **Rank-BM25:** Apache 2.0 License (Dorian Brown)
-- **SciPy & NumPy:** BSD-3-Clause License
+### 4. PyTorch & Torchvision
+- **Licensor:** PyTorch Foundation / Meta
+- **License:** BSD 3-Clause License
+- **Usage:** Neural network backbones (ResNet-18, MobileNetV3-Small), TorchScript export, and dynamic quantization.
+
+---
+
+### 5. Rank-BM25
+- **Author:** Dorian Brown
+- **License:** Apache License 2.0
+- **Usage:** High-efficiency Standard Operating Procedure (SOP) lexical search engine.
+
+---
+
+### 6. OpenCV (Open Source Computer Vision Library)
+- **License:** Apache License 2.0
+- **Usage:** Spatial image processing, morphological opening, contour area extraction, and bounding box localization.
+
+---
+
+### 7. FastAPI & Uvicorn
+- **License:** MIT License
+- **Usage:** Real-time inspection event server and REST backend API for edge diagnostics.

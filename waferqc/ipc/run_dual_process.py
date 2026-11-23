@@ -22,6 +22,9 @@ def main():
     is_linux = sys.platform.startswith("linux")
     python_exe = sys.executable
 
+    # Resolve repo root directory dynamically
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
     # Build commands with core pinning if on Linux
     if is_linux:
         # Pinned to CPU Cores 0,1
@@ -33,13 +36,16 @@ def main():
         cmd_vision = [python_exe, "-m", "waferqc.ipc.vision_worker", "--count", "24", "--delay", "0.08"]
         cmd_advisor = [python_exe, "-m", "waferqc.ipc.advisor_worker", "--poll-interval", "0.05"]
 
+    env = dict(os.environ)
+    env["PYTHONPATH"] = project_root
+
     print(f"[Launcher] Launching Process 1 (Vision Engine)...")
     print(f"           Command: {' '.join(cmd_vision)}")
-    proc_vision = subprocess.Popen(cmd_vision, env=dict(os.environ, PYTHONPATH="."))
+    proc_vision = subprocess.Popen(cmd_vision, cwd=project_root, env=env)
 
     print(f"[Launcher] Launching Process 2 (Language Advisory Engine)...")
     print(f"           Command: {' '.join(cmd_advisor)}")
-    proc_advisor = subprocess.Popen(cmd_advisor, env=dict(os.environ, PYTHONPATH="."))
+    proc_advisor = subprocess.Popen(cmd_advisor, cwd=project_root, env=env)
 
     print(f"\nBoth processes active: Vision PID={proc_vision.pid}, Advisor PID={proc_advisor.pid}")
     print("Streaming pipeline execution across isolated OS boundaries...\n")

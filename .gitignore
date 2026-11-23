@@ -3,19 +3,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environments
+# PyTorch & Environment
+*.pth.tar
+.venv/
 venv/
 env/
 waferqc_env/
-.env
 
-# Temporary artifacts & uploads
-outputs/upload_*
-outputs_test/
-*.tmp
-*.log
-
-# Database WAL files (keep main database)
+# Database temporary journals
 *.db-wal
 *.db-shm
 
@@ -25,10 +20,10 @@ outputs_test/
 .DS_Store
 Thumbs.db
 
-# Large dataset image folders (metadata.csv and generator scripts are tracked)
-# To regenerate: python generate_dataset.py --num-samples 3000
+# Output artifacts that are regenerable
+outputs_test/
+pdf_preview/
+# Heavy dataset folders (train set can be regenerated via generate_sem_dataset.py)
 dataset_3k/train/
-dataset_3k/val/
-dataset_3k/test/
-samples/
-samples_v2/
+outputs/upload_*.png
+temp_*.png
