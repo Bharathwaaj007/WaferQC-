@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>WaferQC — SEM Inline Defect Review & Advisory Console</title>
+  <title>WaferQC — SEM Inline Defect Review & Hardware Diagnostic Console</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script>
     tailwind.config = {
@@ -12,8 +12,9 @@
         extend: {
           colors: {
             deep: '#060B0D',
-            panel: 'rgba(14, 23, 27, 0.78)',
+            panel: 'rgba(14, 23, 27, 0.88)',
             panelSolid: '#0E171B',
+            panelBorder: 'rgba(255, 255, 255, 0.10)',
             tealAccent: '#5FD0C4',
             goldAccent: '#E8C170',
             passEmerald: '#10B981',
@@ -29,1335 +30,879 @@
     }
   </script>
   <style>
-    /* Industrial cleanroom styling with maximum legibility */
     body {
       background-color: #060B0D;
       color: #F1F5F9;
       background-image: 
-        radial-gradient(circle at 45% 15%, rgba(15, 30, 36, 0.75) 0%, rgba(6, 11, 13, 0.99) 75%), 
-        radial-gradient(circle at 12% 40%, rgba(95, 208, 196, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 50% 10%, rgba(15, 30, 36, 0.70) 0%, rgba(6, 11, 13, 0.99) 80%);
       font-feature-settings: "tnum" 1, "zero" 1;
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
     }
 
-    /* Glass card styling */
     .glass-card {
-      background: rgba(14, 23, 27, 0.82);
+      background: rgba(14, 23, 27, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.10);
-      border-radius: 16px;
-      box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.70), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(16px);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.70), inset 0 1px 1px 0 rgba(255, 255, 255, 0.10);
     }
 
     .glass-pill {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.10);
-      backdrop-filter: blur(8px);
     }
 
-    .gold-selected-card {
-      border: 1px solid #E8C170 !important;
-      box-shadow: 0 0 22px -2px rgba(232, 193, 112, 0.32), inset 0 1px 1px rgba(232, 193, 112, 0.45) !important;
-      background: linear-gradient(135deg, rgba(232, 193, 112, 0.15) 0%, rgba(14, 23, 27, 0.90) 100%) !important;
+    .viewport-box {
+      background: #020507;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
     }
 
-    .node-selected {
-      border-color: #E8C170 !important;
-      box-shadow: 0 0 18px -2px rgba(232, 193, 112, 0.38) !important;
-      background: rgba(28, 40, 45, 0.95) !important;
-    }
-
-    /* Violet halo behind hero wafer disc */
-    .wafer-halo {
-      position: absolute;
-      width: 270px;
-      height: 270px;
-      border-radius: 9999px;
-      background: radial-gradient(circle, rgba(147, 51, 234, 0.25) 0%, rgba(124, 58, 237, 0.09) 50%, transparent 70%);
-      filter: blur(30px);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Custom high-contrast scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(95, 208, 196, 0.45); }
-
-    .connector-svg {
-      pointer-events: none;
-      position: absolute;
-      top: 0;
-      left: 0;
+    .viewport-img {
       width: 100%;
       height: 100%;
-      z-index: 5;
+      object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+      display: block;
     }
 
-    .tab-content { display: none; }
-    .tab-content.active { display: grid; }
-    .tab-content.active-flex { display: flex; }
+    /* Active view mode pill */
+    .mode-btn-active {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    /* Tab navigation buttons */
+    .nav-tab-active {
+      background: rgba(95, 208, 196, 0.15) !important;
+      color: #5FD0C4 !important;
+      border-color: rgba(95, 208, 196, 0.40) !important;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(95, 208, 196, 0.4); }
   </style>
 </head>
-<body class="min-h-screen text-slate-100 flex flex-col font-sans selection:bg-teal-900/60 selection:text-teal-200">
+<body class="min-h-screen text-slate-100 flex flex-col font-sans">
 
-<!-- ========================================================================= -->
-<!-- 1. TOP SYSTEM TELEMETRY HEADER                                            -->
-<!-- ========================================================================= -->
-<header class="h-14 border-b border-white/[0.10] px-4 sm:px-6 flex items-center justify-between bg-[#060B0D]/90 backdrop-blur-md sticky top-0 z-50">
-  <!-- Left: Logo & Honest Operating Mode Pill -->
-  <div class="flex items-center gap-3.5">
-    <div class="flex items-center gap-2.5">
-      <svg class="w-6 h-6 text-tealAccent" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
-        <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-dasharray="2 3"></circle>
-        <circle cx="12" cy="12" r="4.2" stroke="#E8C170"></circle>
-        <path d="M12 2.5V7M12 17v4.5M2.5 12H7M17 12h4.5" stroke="currentColor"></path>
-        <circle cx="12" cy="12" fill="#E8C170" r="1.2"></circle>
-      </svg>
-      <span class="font-bold tracking-wider text-base text-white uppercase font-mono">WaferQC</span>
-    </div>
-    <span class="h-4 w-px bg-white/15"></span>
-    <span id="backend-status-pill" class="px-2.5 py-0.5 text-xs font-mono font-medium tracking-wide rounded-full border border-tealAccent/40 text-tealAccent bg-tealAccent/10">
-      CONNECTING...
-    </span>
-  </div>
-
-  <!-- Right: Edge Hardware Health Strip (Real Pi 5 Cortex-A76 Metrics) -->
-  <div class="hidden lg:flex items-center gap-2.5 text-xs font-mono text-slate-200">
-    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="BCM2712 SoC Active Cooler">
-      <span class="w-2 h-2 rounded-full bg-tealAccent animate-pulse"></span>
-      <span class="text-slate-400 font-sans">Pi 5 Temp:</span>
-      <span class="text-slate-100 font-bold" id="stat-temp">51.2°C</span>
-    </div>
-    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Vision CPU Core Affinity">
-      <span class="text-slate-400 font-sans">Vision Cores 0-1:</span>
-      <span class="text-tealAccent font-bold" id="stat-vision">43.6 ms (23 FPS)</span>
-    </div>
-    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Llama 3.2 1B Core Affinity">
-      <span class="text-slate-400 font-sans">Advisor Cores 2-3:</span>
-      <span class="text-slate-100 font-bold" id="stat-advisor">Idle / Standby</span>
-    </div>
-    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Llama Resident Memory Budget">
-      <span class="text-slate-400 font-sans">RAM:</span>
-      <span class="text-slate-100 font-bold">2.1 / 8.0 GB</span>
-    </div>
-    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full glass-pill" title="Non-Blocking SQLite Queue">
-      <span class="text-slate-400 font-sans">IPC Queue:</span>
-      <span class="text-passEmerald font-bold" id="stat-queue">0 Pending</span>
-    </div>
-    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80 text-slate-200">
-      <svg class="w-3.5 h-3.5 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><rect height="11" rx="2" ry="2" width="18" x="3" y="11"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-      <span class="font-medium">Air-Gapped</span>
-    </div>
-  </div>
-</header>
-
-<!-- ========================================================================= -->
-<!-- 2. TABS BAR                                                               -->
-<!-- ========================================================================= -->
-<nav class="h-11 border-b border-white/[0.10] px-4 sm:px-6 flex items-center gap-8 text-sm font-semibold bg-[#060B0D]/70 backdrop-blur-sm">
-  <button id="tab-btn-live" onclick="switchTab('live')" class="h-full relative text-white flex items-center gap-2 focus:outline-none transition-colors">
-    <span>Live Review</span>
-    <span id="tab-indicator-live" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170]"></span>
-  </button>
-  <button id="tab-btn-advisor" onclick="switchTab('advisor')" class="h-full relative text-slate-400 hover:text-white flex items-center gap-2 focus:outline-none transition-colors">
-    <span>Advisor & Verifier</span>
-    <span class="w-1.5 h-1.5 rounded-full bg-tealAccent"></span>
-    <span id="tab-indicator-advisor" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170] hidden"></span>
-  </button>
-  <button id="tab-btn-audit" onclick="switchTab('audit')" class="h-full relative text-slate-400 hover:text-white flex items-center gap-2 focus:outline-none transition-colors">
-    <span>Audit Log</span>
-    <span id="tab-indicator-audit" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170] hidden"></span>
-  </button>
-  <button id="tab-btn-bench" onclick="switchTab('bench')" class="h-full relative text-slate-400 hover:text-white flex items-center gap-2 focus:outline-none transition-colors">
-    <span>Benchmarks</span>
-    <span id="tab-indicator-bench" class="absolute bottom-0 left-0 right-0 h-[2px] bg-goldAccent shadow-[0_0_8px_#E8C170] hidden"></span>
-  </button>
-</nav>
-
-<!-- ========================================================================= -->
-<!-- 3. TAB 1: LIVE REVIEW (HERO THREE-ZONE WORKSPACE)                         -->
-<!-- ========================================================================= -->
-<main id="tab-content-live" class="tab-content active flex-1 p-4 lg:p-6 grid-cols-1 xl:grid-cols-12 gap-5 max-w-[1720px] mx-auto w-full">
-
-  <!-- ZONE 1: HERO WAFER DISC (Left, 3 cols) -->
-  <section class="xl:col-span-3 flex flex-col gap-4">
-    <div class="glass-card p-5 relative overflow-hidden flex flex-col items-center justify-between flex-1 min-h-[580px]">
-      <div class="w-full flex items-center justify-between pb-3 border-b border-white/[0.08] z-10">
-        <div>
-          <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Substrate Inspection</h2>
-          <div class="text-base font-bold text-white mt-0.5">300mm Silicon Wafer</div>
+  <!-- ========================================================================= -->
+  <!-- 1. TOP HARDWARE ACCELERATOR STATUS BAR                                    -->
+  <!-- ========================================================================= -->
+  <header class="h-16 border-b border-white/10 px-4 sm:px-6 flex items-center justify-between bg-[#060B0D]/90 backdrop-blur-md sticky top-0 z-50">
+    <!-- Left: Branding & Hardware Mode -->
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-tealAccent/15 border border-tealAccent/30 flex items-center justify-center text-tealAccent">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-dasharray="2 3"></circle>
+            <circle cx="12" cy="12" r="4.2" stroke="#E8C170"></circle>
+            <path d="M12 2.5V7M12 17v4.5M2.5 12H7M17 12h4.5" stroke="currentColor"></path>
+          </svg>
         </div>
-        <span class="px-2.5 py-1 text-xs font-mono font-bold text-tealAccent bg-tealAccent/15 border border-tealAccent/30 rounded-md">
-          AMAT SEM-04
-        </span>
-      </div>
-
-      <!-- Wafer Canvas with Violet Glow Halo -->
-      <div class="relative w-full aspect-square max-w-[270px] my-4 flex items-center justify-center">
-        <div class="wafer-halo"></div>
-        <canvas id="wafer-canvas" width="270" height="270" class="relative z-10 cursor-pointer drop-shadow-2xl"></canvas>
-        <div class="absolute bottom-1 text-[11px] font-mono font-bold text-slate-300 tracking-wider z-10 bg-slate-950/80 px-2.5 py-0.5 rounded border border-white/10">
-          ALIGNMENT NOTCH ▼
-        </div>
-      </div>
-
-      <!-- Lot & Inspection Metadata -->
-      <div class="w-full space-y-3.5 z-10">
-        <div class="grid grid-cols-2 gap-2 text-xs font-mono bg-white/[0.03] p-3 rounded-xl border border-white/[0.08]">
-          <div>
-            <span class="text-slate-400 block text-[11px] font-sans">LOT IDENTIFIER</span>
-            <span class="text-white font-bold text-xs mt-0.5 block">#IN-BLR-9402A</span>
-          </div>
-          <div>
-            <span class="text-slate-400 block text-[11px] font-sans">CARRIER / WAFER</span>
-            <span class="text-white font-bold text-xs mt-0.5 block">Slot 08 · Wafer #04</span>
-          </div>
-          <div class="col-span-2 pt-2 border-t border-white/[0.06] flex justify-between items-center">
-            <span class="text-slate-300 text-xs font-sans">TOTAL DIES INSPECTED</span>
-            <span id="stat-total-dies" class="text-tealAccent font-bold text-sm">1,428 Dies</span>
-          </div>
-        </div>
-
-        <!-- Proportional Yield Bar -->
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between text-xs font-mono">
-            <span class="text-slate-300 font-sans">DISPOSITION YIELD</span>
-            <span id="stat-yield-pct" class="font-bold text-tealAccent text-sm">94.1%</span>
-          </div>
-          <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden flex border border-white/[0.12] p-0.5">
-            <div id="yield-bar-pass" class="bg-passEmerald h-full rounded-l-full transition-all duration-500" style="width: 88.5%;" title="Pass"></div>
-            <div id="yield-bar-rework" class="bg-reworkAmber h-full transition-all duration-500" style="width: 8.2%;" title="Rework"></div>
-            <div id="yield-bar-scrap" class="bg-scrapCrimson h-full rounded-r-full transition-all duration-500" style="width: 3.3%;" title="Scrap"></div>
-          </div>
-          <div class="flex justify-between items-center text-xs font-mono pt-1 text-slate-300">
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-passEmerald"></span> Pass: <strong id="count-pass" class="text-white">1,264</strong></span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-reworkAmber"></span> Rework: <strong id="count-rework" class="text-white">117</strong></span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-scrapCrimson"></span> Scrap: <strong id="count-scrap" class="text-white">47</strong></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ZONE 2: DEFECT TAXONOMY & ARC EVENT NODES (Middle, 5 cols) -->
-  <section class="xl:col-span-5 relative flex flex-col min-h-[580px]">
-    <div class="glass-card p-5 flex-1 relative flex flex-col overflow-hidden">
-      <div class="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.08] z-10">
-        <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-goldAccent"></span>
-          <h2 class="text-xs uppercase tracking-wider text-slate-200 font-mono font-bold">Defect Taxonomy & Recent Review Nodes</h2>
-        </div>
-        <span class="text-xs font-mono text-slate-300">Active Fan-Out: <strong id="active-class-pill" class="text-goldAccent font-bold">Bridge</strong></span>
-      </div>
-
-      <!-- SVG Bezier Curves Overlay connecting Class Card to Event Nodes -->
-      <svg id="curve-svg" class="connector-svg" preserveAspectRatio="none" viewBox="0 0 600 520"></svg>
-
-      <!-- Two Column Container: Left Classes / Right Event Nodes -->
-      <div class="grid grid-cols-12 gap-3 flex-1 z-10 relative">
-        <!-- Column A: 6 Stacked Defect Classes -->
-        <div class="col-span-5 flex flex-col justify-between gap-2 py-1" id="defect-classes-stack">
-          <!-- 1. Bridge -->
-          <button id="btn-class-bridge" onclick="selectDefectClass('bridge', this)" class="defect-class-btn text-left p-2.5 rounded-xl gold-selected-card transition-all flex items-center justify-between relative group" data-type="bridge">
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-goldAccent"></span>
-                <span class="text-xs font-bold text-goldAccent block truncate">Bridge</span>
-              </div>
-              <span class="text-[11px] font-mono text-scrapCrimson font-semibold">Conductive Short</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span id="badge-count-bridge" class="text-xs font-mono font-bold text-goldAccent px-2 py-0.5 rounded bg-goldAccent/20 border border-goldAccent/40">47</span>
-              <span class="text-goldAccent text-xs">▶</span>
-            </div>
-          </button>
-
-          <!-- 2. Particle -->
-          <button onclick="selectDefectClass('particle', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="particle">
-            <div class="min-w-0">
-              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Particle</span>
-              <span class="text-[11px] font-mono text-reworkAmber font-medium">Surface Contaminant</span>
-            </div>
-            <span id="badge-count-particle" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">58</span>
-          </button>
-
-          <!-- 3. Scratch -->
-          <button onclick="selectDefectClass('scratch', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="scratch">
-            <div class="min-w-0">
-              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Scratch</span>
-              <span class="text-[11px] font-mono text-scrapCrimson font-medium">Abrasive Gouge</span>
-            </div>
-            <span id="badge-count-scratch" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">31</span>
-          </button>
-
-          <!-- 4. Clean -->
-          <button onclick="selectDefectClass('clean', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="clean">
-            <div class="min-w-0">
-              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Clean</span>
-              <span class="text-[11px] font-mono text-passEmerald font-medium">Nominal Topography</span>
-            </div>
-            <span id="badge-count-clean" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">1,264</span>
-          </button>
-
-          <!-- 5. Charging Nuisance -->
-          <button onclick="selectDefectClass('nuisance_charging', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="nuisance_charging">
-            <div class="min-w-0">
-              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Charging Nuisance</span>
-              <span class="text-[11px] font-mono text-slate-300 font-medium">Beam Flare (False)</span>
-            </div>
-            <span id="badge-count-charging" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">19</span>
-          </button>
-
-          <!-- 6. Jitter Nuisance -->
-          <button onclick="selectDefectClass('nuisance_jitter', this)" class="defect-class-btn text-left p-2.5 rounded-xl border border-white/[0.10] bg-white/[0.03] hover:bg-white/[0.07] transition-all flex items-center justify-between group" data-type="nuisance_jitter">
-            <div class="min-w-0">
-              <span class="text-xs font-semibold text-slate-200 block truncate group-hover:text-white">Jitter Nuisance</span>
-              <span class="text-[11px] font-mono text-slate-300 font-medium">Scan Vibration</span>
-            </div>
-            <span id="badge-count-jitter" class="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 rounded bg-white/[0.06]">9</span>
-          </button>
-        </div>
-
-        <!-- Center spacer for Bezier arc -->
-        <div class="col-span-1"></div>
-
-        <!-- Column B: 8 Arc Event Nodes -->
-        <div class="col-span-6 flex flex-col justify-between gap-2 overflow-hidden" id="event-nodes-container">
-          <!-- Dynamically injected via script -->
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ZONE 3: GLASS DETAIL RAIL (Right, 4 cols) -->
-  <section class="xl:col-span-4 flex flex-col gap-4">
-    <div class="glass-card p-5 flex flex-col gap-3.5 flex-1" id="detail-rail">
-      <!-- Header: Title with SCRAP/REWORK/PASS badge -->
-      <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
         <div>
           <div class="flex items-center gap-2">
-            <span id="detail-header-title" class="text-sm font-bold text-white tracking-wide font-mono">BRIDGE · DIE [R14, C09]</span>
+            <span class="font-bold tracking-wider text-base text-white uppercase">WAFERQC</span>
+            <span class="text-xs text-slate-400 font-mono tracking-wide">| SEM INLINE DEFECT ACCELERATOR</span>
           </div>
-          <span class="text-xs font-mono text-slate-400">Event Hash: <span id="detail-header-hash" class="text-tealAccent font-bold">d4a97ef1</span></span>
-        </div>
-        <span id="detail-disp-badge" class="px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-scrapCrimson/60 text-scrapCrimson bg-scrapCrimson/15 shadow-[0_0_14px_rgba(239,68,68,0.25)]">
-          SCRAP
-        </span>
-      </div>
-
-      <!-- SEM Crop Inspector with De-artifacted vs Raw Toggle -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-mono font-semibold text-slate-200">SEM REVIEW CROP (256×256)</span>
-          <div class="flex items-center rounded-lg border border-white/[0.12] p-0.5 bg-black/60 text-xs font-mono">
-            <button id="btn-view-proc" onclick="toggleSemMode('proc')" class="px-2.5 py-0.5 rounded-md text-white bg-white/15 font-bold">De-artifacted</button>
-            <button id="btn-view-raw" onclick="toggleSemMode('raw')" class="px-2.5 py-0.5 rounded-md text-slate-300 hover:text-white font-medium">Raw SEM</button>
-          </div>
-        </div>
-
-        <!-- Canvas SEM Viewer Area -->
-        <div class="relative w-full aspect-video bg-[#030607] rounded-xl border border-white/[0.12] overflow-hidden flex items-center justify-center shadow-inner group">
-          <canvas id="sem-detail-canvas" width="340" height="190" class="w-full h-full object-cover transition-opacity duration-300"></canvas>
-          <!-- Reticle bounding box -->
-          <div id="sem-reticle" class="absolute border-2 border-scrapCrimson bg-scrapCrimson/15 transition-all duration-300 pointer-events-none" style="left: 48%; top: 40%; width: 44px; height: 36px; transform: translate(-50%, -50%);">
-            <span id="reticle-label" class="absolute -top-4 -left-1 bg-scrapCrimson text-black font-mono font-bold text-[10px] px-1 rounded-sm">BRIDGE 0.998</span>
-            <div class="absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 border-white"></div>
-            <div class="absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 border-white"></div>
-            <div class="absolute -bottom-1 -left-1 w-2 h-2 border-b-2 border-l-2 border-white"></div>
-            <div class="absolute -bottom-1 -right-1 w-2 h-2 border-b-2 border-r-2 border-white"></div>
-          </div>
-          <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/85 border border-white/15 text-[11px] font-mono font-medium text-slate-200">
-            MAG: 120,000x | 28nm Pitch
-          </div>
-          <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/85 border border-white/15 text-[11px] font-mono font-bold text-tealAccent">
-            HV: 1.2 kV · eBeam
+          <div class="text-[11px] text-tealAccent font-mono flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-passEmerald animate-pulse"></span>
+            <span>Broadcom BCM2712 Quad Cortex-A76 @ 2.4 GHz</span>
+            <span class="text-slate-500">•</span>
+            <span class="text-slate-300">ARM NEON + TorchScript</span>
           </div>
         </div>
       </div>
+      <span class="h-6 w-px bg-white/10 hidden md:block"></span>
+      <span class="hidden md:inline-flex px-2.5 py-1 text-xs font-mono font-medium rounded-full border border-tealAccent/40 text-tealAccent bg-tealAccent/10">
+        PHYSICAL PI 5 HARDWARE MODE
+      </span>
+    </div>
 
-      <!-- Metric Strip: KDI Gauge (0.912 Severity) & Primary Metrics -->
-      <div class="bg-white/[0.03] p-3 rounded-xl border border-white/[0.08] space-y-2">
-        <div class="flex items-center justify-between text-xs font-mono">
-          <span class="text-slate-300 font-sans font-medium">KEY DEFECTIVITY INDEX (KDI)</span>
-          <span id="detail-kdi-value" class="text-scrapCrimson font-bold text-sm">0.912 / 1.000</span>
-        </div>
-        <!-- Linear Gauge Meter -->
-        <div class="relative h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-white/[0.12]">
-          <div class="absolute inset-0 flex">
-            <div class="w-1/4 bg-passEmerald/40" title="Pass (<0.25)"></div>
-            <div class="w-2/4 bg-reworkAmber/40" title="Rework (0.25-0.70)"></div>
-            <div class="w-1/4 bg-scrapCrimson/60" title="Scrap (>=0.70)"></div>
+    <!-- Right: Telemetry & Primary Action -->
+    <div class="flex items-center gap-3 text-xs font-mono">
+      <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg glass-pill">
+        <span class="text-slate-400">HARDWARE LATENCY:</span>
+        <span class="text-tealAccent font-bold" id="stat-latency">43.60 ms // 23 FPS</span>
+      </div>
+      <div class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg glass-pill">
+        <span class="text-slate-400">RAM:</span>
+        <span class="text-slate-200 font-medium">2.1 / 8.0 GB</span>
+      </div>
+      <div class="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-lg glass-pill">
+        <span class="text-slate-400">TEMP:</span>
+        <span class="text-slate-200 font-medium">48°C</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900/80 text-slate-300">
+        <svg class="w-3.5 h-3.5 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect height="11" rx="2" ry="2" width="18" x="3" y="11"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <span>Air-Gapped</span>
+      </div>
+      <!-- Primary Run Pipeline Button -->
+      <button onclick="runPipelineAction()" id="btn-run-pipeline" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold rounded-lg transition-all shadow-lg shadow-teal-900/30 font-sans text-xs">
+        <svg class="w-4 h-4 text-slate-950" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span>RUN PIPELINE</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. WORKBENCH SUB-HEADER (Tab Navigation & Fab Meta)                       -->
+  <!-- ========================================================================= -->
+  <div class="border-b border-white/10 bg-[#0A1215]/80 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+    <!-- Clean Tab Navigation -->
+    <div class="flex items-center gap-2">
+      <button onclick="switchTab('tab-review')" id="nav-btn-review" class="nav-tab-active px-3 py-1.5 rounded-md font-medium border border-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        <span>1. Live SEM Review & Defect Localization</span>
+      </button>
+      <button onclick="switchTab('tab-sops')" id="nav-btn-sops" class="px-3 py-1.5 rounded-md font-medium border border-transparent text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>2. Fab SOP Knowledge Base (15 SOPs)</span>
+      </button>
+      <button onclick="switchTab('tab-audit')" id="nav-btn-audit" class="px-3 py-1.5 rounded-md font-medium border border-transparent text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span>3. Regulatory Audit Trail (SQLite)</span>
+      </button>
+      <button onclick="switchTab('tab-bench')" id="nav-btn-bench" class="px-3 py-1.5 rounded-md font-medium border border-transparent text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>4. Edge Benchmarks & Telemetry</span>
+      </button>
+    </div>
+
+    <!-- Active Fab Context -->
+    <div class="flex items-center gap-3 text-slate-400 font-mono text-[11px]">
+      <span>LOT: <strong class="text-slate-200">#WFR-2026-N28</strong></span>
+      <span>•</span>
+      <span>SUBSTRATE: <strong class="text-slate-200">300mm Silicon Wafer</strong></span>
+      <span>•</span>
+      <span>TOOL: <strong class="text-tealAccent">AMAT SEM-04</strong></span>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN CONTENT CONTAINER                                                    -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: LIVE SEM REVIEW & HARDWARE LOCALIZATION (Side-by-Side Hero)    -->
+    <!-- ===================================================================== -->
+    <div id="tab-review" class="space-y-5">
+
+      <!-- SIDE-BY-SIDE HERO COMPARISON VIEWPORTS (Exact Fracture Screening Style) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- PANEL 1: INPUT SEM CROP -->
+        <div class="glass-card p-4 flex flex-col justify-between">
+          <div>
+            <!-- Panel Header -->
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-tealAccent"></span>
+                <h3 class="font-bold text-sm text-slate-100 tracking-wide font-mono">1. Input SEM Review Crop (256×256 eBeam Field)</h3>
+              </div>
+              <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+                <span>Mag: 120,000×</span>
+                <span>•</span>
+                <span>Pitch: 28nm</span>
+                <span>•</span>
+                <span>HV: 1.2 kV</span>
+              </div>
+            </div>
+
+            <!-- Viewport 1 Display Canvas -->
+            <div class="viewport-box aspect-square flex items-center justify-center">
+              <img id="img-input-raw" src="/outputs/test_bridge.png" alt="Input SEM Crop" class="viewport-img" onerror="this.src='/outputs/confusion_matrix.png'"/>
+              <!-- Crosshair Overlay Grid (Subtle) -->
+              <div class="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:32px_32px]"></div>
+            </div>
           </div>
-          <div id="detail-kdi-indicator" class="absolute top-0 bottom-0 w-2 bg-white shadow-[0_0_10px_#ffffff] transition-all duration-500" style="left: 91.2%;"></div>
+
+          <!-- Interactive Action Controls Below Input Viewport -->
+          <div class="pt-4 mt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-2">
+              <!-- Browse / Upload SEM Scan -->
+              <input type="file" id="file-upload" accept="image/png,image/jpeg" class="hidden" onchange="handleFileUpload(event)"/>
+              <button onclick="document.getElementById('file-upload').click()" class="px-3.5 py-1.5 rounded-lg glass-pill hover:bg-white/10 text-slate-200 font-medium flex items-center gap-1.5 transition-all">
+                <svg class="w-4 h-4 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                <span>Browse SEM Scan</span>
+              </button>
+              
+              <!-- Random Test Case -->
+              <button onclick="fetchRandomSample()" class="px-3.5 py-1.5 rounded-lg glass-pill hover:bg-white/10 text-tealAccent font-medium flex items-center gap-1.5 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>Random Test Sample</span>
+              </button>
+            </div>
+
+            <!-- Quick Class Select Dropdown -->
+            <div class="flex items-center gap-2 text-slate-400 font-mono text-[11px]">
+              <span>Filter:</span>
+              <select id="select-class-filter" onchange="fetchRandomSample(this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-md px-2 py-1 outline-none">
+                <option value="">Any Defect Type</option>
+                <option value="bridge">Bridge (Short)</option>
+                <option value="particle">Particle (Contaminant)</option>
+                <option value="scratch">Scratch (Gouge)</option>
+                <option value="clean">Clean (Nominal)</option>
+                <option value="nuisance_charging">Nuisance (Charging)</option>
+                <option value="nuisance_jitter">Nuisance (Scan Jitter)</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div class="flex justify-between text-[11px] font-mono text-slate-300">
-          <span>Pass (&lt;0.25)</span>
-          <span>Rework (0.25–0.70)</span>
-          <span class="text-scrapCrimson font-bold">Scrap (≥0.70)</span>
+
+        <!-- PANEL 2: RECONSTRUCTED DEFECT LOCALIZATION OUTPUT -->
+        <div class="glass-card p-4 flex flex-col justify-between">
+          <div>
+            <!-- Panel Header with View Switches -->
+            <div class="flex flex-wrap items-center justify-between pb-3 mb-3 border-b border-white/10 gap-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-scrapCrimson"></span>
+                <h3 class="font-bold text-sm text-slate-100 tracking-wide font-mono">2. Reconstructed Defect Localization & Diagnostic</h3>
+              </div>
+
+              <!-- View Toggles: OVERLAY, HEATMAP, SOBEL, DE-ARTIFACTED -->
+              <div class="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded-lg border border-white/10 text-[11px] font-mono">
+                <button onclick="setDiagnosticMode('overlay')" id="btn-mode-overlay" class="mode-btn-active px-2.5 py-1 rounded font-semibold transition-all">
+                  OVERLAY
+                </button>
+                <button onclick="setDiagnosticMode('heatmap')" id="btn-mode-heatmap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
+                  DEFECT HEATMAP
+                </button>
+                <button onclick="setDiagnosticMode('sobel')" id="btn-mode-sobel" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
+                  SOBEL GRADIENT
+                </button>
+                <button onclick="setDiagnosticMode('deartifacted')" id="btn-mode-deartifacted" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
+                  DE-ARTIFACTED
+                </button>
+              </div>
+            </div>
+
+            <!-- Viewport 2 Display Canvas -->
+            <div class="viewport-box aspect-square flex items-center justify-center">
+              <img id="img-output-diagnostic" src="/outputs/test_bridge.png" alt="Diagnostic Output" class="viewport-img"/>
+              <!-- Active Mode Watermark Pill -->
+              <div id="mode-watermark" class="absolute top-3 right-3 px-2 py-0.5 rounded bg-black/75 border border-white/20 text-[10px] font-mono tracking-wider text-slate-300">
+                MODE: DEFECT OVERLAY (EXACT BOUNDING)
+              </div>
+            </div>
+          </div>
+
+          <!-- Colorbar Gradient Legend & Sub-label -->
+          <div class="pt-4 mt-3 border-t border-white/10 flex flex-col gap-1.5 text-[11px] font-mono">
+            <div class="h-2 rounded-full w-full bg-gradient-to-r from-blue-700 via-teal-400 via-yellow-400 to-red-600"></div>
+            <div class="flex justify-between text-slate-400">
+              <span>• Nominal Pattern (0.0 Anomaly)</span>
+              <span>Micro-Gradient Gradient Field</span>
+              <span class="text-scrapCrimson font-semibold">• Defect Anomaly Zone (1.0)</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 2x2 Technical Telemetry Grid -->
-      <div class="grid grid-cols-2 gap-2 text-xs font-mono">
-        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-          <span class="text-slate-400 block text-[11px] font-sans">INFERENCE LATENCY</span>
-          <span id="tele-lat" class="text-tealAccent font-bold text-xs mt-0.5 block">43.5 ms</span>
-        </div>
-        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-          <span class="text-slate-400 block text-[11px] font-sans">DEFECT AREA</span>
-          <span id="tele-area" class="text-white font-bold text-xs mt-0.5 block">184 px² (Contour)</span>
-        </div>
-        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-          <span class="text-slate-400 block text-[11px] font-sans">PATTERN TYPE</span>
-          <span id="tele-pattern" class="text-slate-200 font-bold text-xs mt-0.5 block truncate">Line/Space 28nm</span>
-        </div>
-        <div class="p-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-          <span class="text-slate-400 block text-[11px] font-sans">DIE / SLOT LOCATION</span>
-          <span id="tele-slot" class="text-slate-200 font-bold text-xs mt-0.5 block truncate">Slot 08, R14 C09</span>
+      <!-- ===================================================================== -->
+      <!-- PROMINENT CENTER-STAGE DEFECT IDENTIFICATION & SEVERITY BANNER        -->
+      <!-- ===================================================================== -->
+      <div class="glass-card p-5 border-l-4 border-scrapCrimson" id="banner-defect-card">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <!-- Classification Callout -->
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="text-xs uppercase font-mono tracking-wider text-slate-400">AUTOMATED REAL-TIME INLINE DEFECT IDENTIFICATION:</span>
+              <span id="badge-disposition" class="px-2 py-0.5 rounded text-xs font-bold font-mono bg-scrapCrimson/20 text-scrapCrimson border border-scrapCrimson/40">
+                SCRAP
+              </span>
+              <span id="badge-override" class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-red-950 text-red-300 border border-red-700">
+                CRITICAL OVERRIDE (p ≥ 0.70)
+              </span>
+            </div>
+            <div class="flex items-baseline gap-3">
+              <h2 id="text-predicted-class" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-mono">
+                BRIDGE <span class="text-base font-normal text-slate-400 font-sans">(Conductive Short Circuit)</span>
+              </h2>
+              <span class="text-sm font-mono text-tealAccent">Confidence: <strong id="text-confidence" class="text-lg">99.64%</strong></span>
+            </div>
+            <p id="text-defect-details" class="text-xs text-slate-300 font-mono">
+              Exact Bounding Box: <span id="text-bbox" class="text-goldAccent font-semibold">[x1: 76, y1: 113, x2: 86, y2: 143]</span> 
+              • Defect Area: <span id="text-area" class="text-goldAccent font-semibold">167 px² (~134 nm²)</span> 
+              • Pattern: <span class="text-slate-200">Line/Space 28nm</span>
+            </p>
+          </div>
+
+          <!-- Real-Time Metrics Strip -->
+          <div class="flex items-center gap-4 text-right">
+            <!-- KDI Severity Gauge -->
+            <div class="bg-black/40 px-4 py-2.5 rounded-xl border border-white/10 min-w-[190px]">
+              <div class="flex justify-between text-xs font-mono mb-1">
+                <span class="text-slate-400">KEY DEFECTIVITY (KDI):</span>
+                <span id="text-kdi" class="font-bold text-scrapCrimson">0.948</span>
+              </div>
+              <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div id="bar-kdi" class="h-full bg-scrapCrimson transition-all" style="width: 94.8%;"></div>
+              </div>
+              <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                <span>Pass &lt;0.25</span>
+                <span>Rework</span>
+                <span>Scrap ≥0.70</span>
+              </div>
+            </div>
+
+            <!-- Total Latency -->
+            <div class="bg-black/40 px-4 py-2.5 rounded-xl border border-white/10 text-center">
+              <span class="text-[10px] uppercase font-mono text-slate-400 block">TOTAL LATENCY</span>
+              <span id="text-total-latency" class="text-lg font-bold text-tealAccent font-mono">43.60 ms</span>
+              <span class="text-[10px] text-slate-500 block font-mono">23.0 FPS CPU</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Advisor Guidance Block (Llama 3.2 1B FP32 Cores 2-3) -->
-      <div class="p-3.5 rounded-xl border border-white/[0.10] bg-white/[0.03] space-y-2">
-        <div class="flex items-center justify-between pb-1.5 border-b border-white/[0.08]">
-          <div class="flex items-center gap-1.5">
-            <svg class="w-4 h-4 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-            <span class="text-xs font-bold text-white">Advisor Guidance</span>
-          </div>
-          <span class="text-[11px] font-mono text-tealAccent font-bold">Llama 3.2 1B · Cores 2-3</span>
-        </div>
-        <div>
-          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-mono font-bold block">Probable Physical Mechanism:</span>
-          <p id="adv-mech" class="text-xs text-slate-200 mt-0.5 leading-relaxed font-sans">
-            Lithography focus drift causing residual resist scumming bridging adjacent 28nm conductive lines.
-          </p>
-        </div>
-        <div>
-          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-mono font-bold block">Prescribed Fab Action:</span>
-          <p id="adv-action" class="text-xs text-slate-200 mt-0.5 leading-relaxed font-sans">
-            Quarantine stepper lot #IN-BLR-9402A; inspect chuck leveling interferometer telemetry.
-          </p>
-        </div>
+      <!-- ===================================================================== -->
+      <!-- BOTTOM ENGINEERING DIAGNOSTICS: ADVISOR & AUDIT TRAIL                 -->
+      <!-- ===================================================================== -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        <!-- SOP Chips & Verifier Strip -->
-        <div class="pt-1.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08]">
-          <div id="sop-chips-container" class="flex items-center gap-1.5">
-            <span class="px-2 py-0.5 text-xs font-mono font-bold rounded bg-tealAccent/15 text-tealAccent border border-tealAccent/30">
-              SOP-LIT-01 (Focus Drift)
+        <!-- Card A: Fab Failure Analysis Advisory (LLM + Verifier) -->
+        <div class="glass-card p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-goldAccent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <h3 class="font-bold text-sm text-slate-100">Failure Analysis Advisory & SOP Recommendations</h3>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono border border-tealAccent/30 text-tealAccent bg-tealAccent/10">
+              Llama-3.2-1B Grounded RAG
             </span>
           </div>
-          <!-- Five-Tick Verifier Strip (V1 to V5 all verified) -->
-          <div class="flex items-center gap-1 font-mono text-xs" title="V1-V5 Logical Verification Passed">
-            <span class="text-slate-400 text-[10px]">VERIFIER:</span>
-            <span class="text-passEmerald font-bold">✓V1</span>
-            <span class="text-passEmerald font-bold">✓V2</span>
-            <span class="text-passEmerald font-bold">✓V3</span>
-            <span class="text-passEmerald font-bold">✓V4</span>
-            <span class="text-passEmerald font-bold">✓V5</span>
+
+          <div class="space-y-2 text-xs">
+            <div>
+              <span class="text-slate-400 font-mono text-[11px] block">CITING FAB STANDARD OPERATING PROCEDURE:</span>
+              <span id="text-adv-sop" class="font-mono text-goldAccent font-semibold text-sm">
+                SOP-LIT-004: Photolithography Bridging & Resist Scumming Review
+              </span>
+            </div>
+
+            <div>
+              <span class="text-slate-400 font-mono text-[11px] block">PHYSICAL ROOT CAUSE ANALYSIS:</span>
+              <p id="text-adv-root-cause" class="text-slate-200 mt-0.5 leading-relaxed">
+                Inter-line conductive bridging detected. High probability of photoresist scumming due to sub-optimal developer agitation, or underexposure during 193nm immersion scanner exposure.
+              </p>
+            </div>
+
+            <div>
+              <span class="text-slate-400 font-mono text-[11px] block">IMMEDIATE FAB CORRECTIVE ACTIONS:</span>
+              <ul id="list-adv-actions" class="list-disc list-inside text-slate-200 space-y-1 mt-0.5">
+                <li>Halt Scanner Track immersion lot #WFR-2026-N28; flag slit-focus calibration.</li>
+                <li>Verify rinse nozzle pressure on Litho Track Module 3; check developer bath temperature (21.0 ± 0.2°C).</li>
+                <li>Route wafer lot to dry strip rework if defect is pre-etch; otherwise designate scrap to avoid lot-wide contamination.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Deterministic Verifier Guardrail Checklist -->
+          <div class="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono">
+            <span class="text-slate-400">SAFETY VERIFIER:</span>
+            <span class="text-passEmerald font-medium">✓ V1: JSON Schema</span>
+            <span class="text-passEmerald font-medium">✓ V2: Disposition Match</span>
+            <span class="text-passEmerald font-medium">✓ V3: SOP Grounded</span>
+            <span class="text-passEmerald font-medium">✓ V4: Token Bounds</span>
+            <span class="text-passEmerald font-medium">✓ V5: Hallucination Filter</span>
           </div>
         </div>
+
+        <!-- Card B: Regulatory Audit Trail & Hardware IPC Subsystem -->
+        <div class="glass-card p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-tealAccent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              <h3 class="font-bold text-sm text-slate-100">Tamper-Evident Regulatory Audit & IPC Telemetry</h3>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono border border-slate-700 bg-slate-900 text-slate-300">
+              SQLite WAL Storage
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-xs font-mono">
+            <div class="bg-black/30 p-2.5 rounded-lg border border-white/5">
+              <span class="text-slate-400 text-[10px] block">CRYPTOGRAPHIC SHA-256:</span>
+              <span id="text-audit-hash" class="text-tealAccent text-[11px] truncate block" title="100b1cc2d3f45a6b7c8e9f0a1b2c3d4e5f6a7b8c9d0e">
+                100b1cc2d3f45a6b...
+              </span>
+            </div>
+            <div class="bg-black/30 p-2.5 rounded-lg border border-white/5">
+              <span class="text-slate-400 text-[10px] block">AUDIT EVENT RECORD:</span>
+              <span id="text-audit-id" class="text-slate-200 text-xs font-semibold">
+                Event #82 • Logged &amp; Verified
+              </span>
+            </div>
+            <div class="bg-black/30 p-2.5 rounded-lg border border-white/5">
+              <span class="text-slate-400 text-[10px] block">PROCESS 1 (VISION ENGINE):</span>
+              <span class="text-tealAccent text-xs">Cores 0-1 • 43.60 ms (TorchScript)</span>
+            </div>
+            <div class="bg-black/30 p-2.5 rounded-lg border border-white/5">
+              <span class="text-slate-400 text-[10px] block">PROCESS 2 (ADVISOR ENGINE):</span>
+              <span class="text-slate-200 text-xs">Cores 2-3 • Asynchronous IPC</span>
+            </div>
+          </div>
+
+          <!-- Microsecond Pipeline Breakdown -->
+          <div class="space-y-1.5 pt-1 text-xs font-mono">
+            <span class="text-slate-400 text-[11px]">Subsystem Latency Breakdown:</span>
+            <div class="flex items-center gap-2">
+              <span class="text-slate-400 w-28 text-[11px]">eBeam De-artifact:</span>
+              <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="bar-deart-time" class="h-full bg-tealAccent" style="width: 15%;"></div>
+              </div>
+              <span id="text-deart-time" class="text-slate-300 w-16 text-right">0.84 ms</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-slate-400 w-28 text-[11px]">ResNet-18 Vision:</span>
+              <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="bar-cls-time" class="h-full bg-yellow-500" style="width: 80%;"></div>
+              </div>
+              <span id="text-cls-time" class="text-slate-300 w-16 text-right">42.20 ms</span>
+            </div>
+          </div>
+
+          <div class="pt-2 flex justify-end">
+            <button onclick="switchTab('tab-audit')" class="text-xs text-tealAccent hover:underline flex items-center gap-1 font-mono">
+              <span>View Full Regulatory Audit Log</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+
       </div>
 
-      <!-- Footer Action Buttons & Short Audit Hash -->
-      <div class="pt-2 border-t border-white/[0.08] flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <button onclick="simulateNextSample()" class="px-3 py-1.5 rounded-lg border border-tealAccent/50 bg-tealAccent/20 hover:bg-tealAccent/30 text-tealAccent text-xs font-mono font-bold transition-colors flex items-center gap-1.5 shadow-sm">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            <span>Simulate Next</span>
-          </button>
-          <label class="px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
-            <span>Upload SEM</span>
-            <input id="user-upload-input" type="file" accept="image/png,image/jpeg" class="hidden" onchange="handleUserUpload(event)"/>
-          </label>
-        </div>
-        <div class="text-xs font-mono text-slate-300" title="Tamper-Evident SHA-256 Ledger">
-          SHA: <span id="audit-sha-preview" class="text-slate-100 font-bold">d4a9...e81c</span>
-        </div>
-      </div>
     </div>
-  </section>
-</main>
 
-<!-- ========================================================================= -->
-<!-- 4. TAB 2: ADVISOR & VERIFIER (KNOWLEDGE BASE & GUARDRAILS)                -->
-<!-- ========================================================================= -->
-<section id="tab-content-advisor" class="tab-content flex-1 p-4 lg:p-6 max-w-[1720px] mx-auto w-full flex-col gap-5">
-  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full">
-    <!-- Left: 15 SOP Knowledge Base Directory -->
-    <div class="xl:col-span-5 glass-card p-5 flex flex-col gap-3">
-      <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+    <!-- ===================================================================== -->
+    <!-- TAB 2: FAB SOP KNOWLEDGE BASE (15 Grounded Fab SOPs)                   -->
+    <!-- ===================================================================== -->
+    <div id="tab-sops" class="hidden space-y-4">
+      <div class="glass-card p-4 flex items-center justify-between">
         <div>
-          <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">SOP Knowledge Base (BM25 Index)</h2>
-          <div class="text-base font-bold text-white mt-0.5">15 Fab Operating Procedures</div>
+          <h2 class="font-bold text-base text-white">Active Cleanroom Standard Operating Procedures (SOP Knowledge Base)</h2>
+          <p class="text-xs text-slate-400">15 industry-aligned engineering SOPs indexed via BM25 retrieval for zero-hallucination failure advisory.</p>
         </div>
-        <span class="px-2.5 py-1 text-xs font-mono font-bold text-tealAccent bg-tealAccent/15 border border-tealAccent/30 rounded-md">
-          YAML v1.2
+        <span class="px-3 py-1 text-xs font-mono rounded-lg border border-tealAccent/30 text-tealAccent bg-tealAccent/10">
+          15 SOPs Loaded
         </span>
       </div>
-      <p class="text-xs text-slate-300 leading-relaxed font-sans">
-        Lexically indexed via <code>rank_bm25.BM25Okapi</code>. When an inspection event is triggered, the top-2 matching SOP documents are injected into the Llama prompt context.
-      </p>
-      <div id="sop-list-container" class="space-y-2 overflow-y-auto max-h-[580px] pr-1">
-        <!-- Dynamically loaded SOPs -->
+
+      <!-- SOP Cards Grid -->
+      <div id="sop-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Dynamically populated via loadSOPs() -->
       </div>
     </div>
 
-    <!-- Right: Prompt Inspector & Deterministic Verifier Rules (V1-V5) -->
-    <div class="xl:col-span-7 flex flex-col gap-5">
-      <!-- Verifier Guardrails Card -->
-      <div class="glass-card p-5 space-y-3">
-        <div class="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-          <div>
-            <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Zero-Hallucination Guardrails</h2>
-            <div class="text-base font-bold text-white mt-0.5">Deterministic Verifier Engine (Rules V1–V5)</div>
-          </div>
-          <span class="px-3 py-1 text-xs font-mono font-bold text-passEmerald bg-passEmerald/15 border border-passEmerald/30 rounded-md">
-            100% VERIFIED
-          </span>
+    <!-- ===================================================================== -->
+    <!-- TAB 3: REGULATORY AUDIT TRAIL (SQLite Database View)                  -->
+    <!-- ===================================================================== -->
+    <div id="tab-audit" class="hidden space-y-4">
+      <div class="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-bold text-base text-white">Tamper-Evident Regulatory Inspection Log</h2>
+          <p class="text-xs text-slate-400">SQLite audit database with SHA-256 cryptographic verification and micro-latency records.</p>
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-sans">
-          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
-            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
-              <span>Rule V1: JSON Schema</span>
-              <span>✓ ACTIVE</span>
-            </div>
-            <p class="text-slate-300 text-xs">Validates strict JSON object parsing with all 6 mandatory keys. Non-JSON outputs are rejected immediately.</p>
-          </div>
-          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
-            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
-              <span>Rule V2: Disposition Lock</span>
-              <span>✓ ACTIVE</span>
-            </div>
-            <p class="text-slate-300 text-xs">Generated disposition must strictly match the deterministic KDI engine verdict. LLM cannot override SCRAP to PASS.</p>
-          </div>
-          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
-            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
-              <span>Rule V3: SOP Citation Grounding</span>
-              <span>✓ ACTIVE</span>
-            </div>
-            <p class="text-slate-300 text-xs">All cited SOP IDs must be a strict subset of the top-2 retrieved documents. Zero hallucinated procedure IDs.</p>
-          </div>
-          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
-            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
-              <span>Rule V4: Length Bounds</span>
-              <span>✓ ACTIVE</span>
-            </div>
-            <p class="text-slate-300 text-xs">Analysis text bounded to [15, 600] characters; root cause bounded to [10, 400] characters to eliminate rambling.</p>
-          </div>
-          <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1 md:col-span-2">
-            <div class="flex items-center justify-between font-mono font-bold text-passEmerald">
-              <span>Rule V5: Safety & Deterministic Fallback</span>
-              <span>✓ GUARANTEED</span>
-            </div>
-            <p class="text-slate-300 text-xs">Filters prohibited terminology. If any rule fails twice, automatically substitutes a deterministic template labeled <code>TEMPLATE FALLBACK</code>.</p>
-          </div>
+        <div class="flex items-center gap-2">
+          <a href="/api/export_csv" download class="px-3 py-1.5 rounded-lg bg-tealAccent/20 hover:bg-tealAccent/30 text-tealAccent border border-tealAccent/40 font-mono text-xs flex items-center gap-1.5 transition-all">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Export Audit CSV</span>
+          </a>
         </div>
       </div>
 
-      <!-- Prompt Token Budgeting Inspector -->
-      <div class="glass-card p-5 space-y-2.5 flex-1">
-        <div class="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-          <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Llama 3.2 1B Prompt Inspector (<400 Tokens)</h2>
-          <span class="text-xs font-mono text-tealAccent font-bold">Token Budget: ~280 / 400</span>
+      <!-- Table Container -->
+      <div class="glass-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-black/40 text-slate-400 border-b border-white/10">
+              <tr>
+                <th class="p-3">ID</th>
+                <th class="p-3">SHA-256 HASH</th>
+                <th class="p-3">PREDICTED CLASS</th>
+                <th class="p-3">CONFIDENCE</th>
+                <th class="p-3">KDI SCORE</th>
+                <th class="p-3">DISPOSITION</th>
+                <th class="p-3">LATENCY</th>
+                <th class="p-3">ADVISOR</th>
+                <th class="p-3">TIMESTAMP</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body" class="divide-y divide-white/5 text-slate-300">
+              <!-- Dynamically populated via loadAuditEvents() -->
+            </tbody>
+          </table>
         </div>
-        <pre id="prompt-inspector-box" class="p-3 rounded-xl bg-black/60 border border-white/[0.08] text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed max-h-[220px]">
-[SYSTEM INSTRUCTION]
-You are WaferQC Fab Failure Analysis Advisor. Return ONLY valid JSON matching this schema:
-{"analysis": str, "root_cause_hypothesis": str, "recommended_action": str, "disposition": str, "cited_sop_ids": [str], "confidence_note": str}
-
-[INSPECTION EVENT]
-Defect Class: bridge | Pattern: line_space | Confidence: 0.998 | Area: 184 px | KDI: 0.912 | Required Disposition: SCRAP
-
-[RETRIEVED FAB SOPS]
-- [SOP-LIT-01] Focus Drift: Cause: Chuck z-stage positioning deviation or thermal drift during stepper exposure. Action: Recalibrate auto-focus optical sensors and execute chuck plane leveling.
-        </pre>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ========================================================================= -->
-<!-- 5. TAB 3: REGULATORY AUDIT LOG TABLE                                      -->
-<!-- ========================================================================= -->
-<section id="tab-content-audit" class="tab-content flex-1 p-4 lg:p-6 max-w-[1720px] mx-auto w-full flex-col gap-4">
-  <div class="glass-card p-5 flex flex-col gap-4 flex-1">
-    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
-      <div>
-        <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Tamper-Evident Regulatory Audit Ledger</h2>
-        <div class="text-base font-bold text-white mt-0.5">SQLite Audit Database (<code>waferqc_audit.db</code>)</div>
-      </div>
-      <div class="flex items-center gap-3">
-        <button onclick="downloadAuditCsv()" class="px-3 py-1.5 rounded-lg border border-tealAccent/50 bg-tealAccent/20 hover:bg-tealAccent/30 text-tealAccent text-xs font-mono font-bold transition-colors flex items-center gap-1.5 shadow-sm">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
-          <span>Export Audit CSV</span>
-        </button>
-        <button onclick="loadLiveAuditEvents()" class="px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-mono font-medium transition-colors">
-          Refresh Table
-        </button>
       </div>
     </div>
 
-    <!-- Audit Table -->
-    <div class="overflow-x-auto rounded-xl border border-white/[0.08] max-h-[620px]">
-      <table class="w-full text-left border-collapse text-xs font-mono">
-        <thead>
-          <tr class="bg-black/60 text-slate-300 border-b border-white/[0.10]">
-            <th class="p-3">Event ID</th>
-            <th class="p-3">Timestamp (UTC)</th>
-            <th class="p-3">SHA-256 Hash</th>
-            <th class="p-3">Class</th>
-            <th class="p-3">Confidence</th>
-            <th class="p-3">KDI Score</th>
-            <th class="p-3">Disposition</th>
-            <th class="p-3">Latency</th>
-            <th class="p-3">Advisor Source</th>
-          </tr>
-        </thead>
-        <tbody id="audit-table-body" class="divide-y divide-white/[0.06] text-slate-200">
-          <!-- Populated from live SQLite database -->
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
+    <!-- ===================================================================== -->
+    <!-- TAB 4: EDGE BENCHMARKS & TELEMETRY                                    -->
+    <!-- ===================================================================== -->
+    <div id="tab-bench" class="hidden space-y-5">
+      <!-- Architecture Comparison Table -->
+      <div class="glass-card p-5 space-y-4">
+        <div>
+          <h2 class="font-bold text-base text-white">Empirical Edge Model Benchmark (ResNet-18 vs. MobileNetV3-Small)</h2>
+          <p class="text-xs text-slate-400">Zero-hallucination empirical metrics measured on edge CPU and test partition (468 crops).</p>
+        </div>
 
-<!-- ========================================================================= -->
-<!-- 6. TAB 4: BENCHMARKS & MODEL COMPARISONS                                  -->
-<!-- ========================================================================= -->
-<section id="tab-content-bench" class="tab-content flex-1 p-4 lg:p-6 max-w-[1720px] mx-auto w-full flex-col gap-5">
-  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full">
-    <!-- Left: Dual Model Architecture Benchmark Table -->
-    <div class="xl:col-span-6 glass-card p-5 space-y-4">
-      <div class="pb-3 border-b border-white/[0.08]">
-        <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Edge Model Comparative Benchmark</h2>
-        <div class="text-base font-bold text-white mt-0.5">ResNet-18 vs. MobileNetV3-Small</div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-black/40 text-slate-400 border-b border-white/10">
+              <tr>
+                <th class="p-3">MODEL ARCHITECTURE</th>
+                <th class="p-3">PARAMETERS</th>
+                <th class="p-3">DISK SIZE</th>
+                <th class="p-3">TEST ACCURACY</th>
+                <th class="p-3">TEST MACRO-F1</th>
+                <th class="p-3">CPU LATENCY</th>
+                <th class="p-3">COVERAGE (τ=0.55)</th>
+                <th class="p-3">ROLE IN PIPELINE</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5 text-slate-200">
+              <tr class="bg-tealAccent/5">
+                <td class="p-3 font-bold text-tealAccent">ResNet-18 (TorchScript)</td>
+                <td class="p-3">11.18M</td>
+                <td class="p-3">42.79 MB</td>
+                <td class="p-3 font-semibold text-passEmerald">96.58%</td>
+                <td class="p-3 font-semibold text-passEmerald">0.9660</td>
+                <td class="p-3 font-bold text-tealAccent">43.60 ms (23 FPS)</td>
+                <td class="p-3">97.86% (2.14% abstain)</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-tealAccent/20 text-tealAccent font-bold text-[10px]">CHAMPION PRODUCTION</span></td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-yellow-400">MobileNetV3-Small</td>
+                <td class="p-3">1.52M</td>
+                <td class="p-3 text-passEmerald font-bold">6.22 MB (7.2× smaller)</td>
+                <td class="p-3">91.88%</td>
+                <td class="p-3">0.9185</td>
+                <td class="p-3 font-bold text-passEmerald">24.10 ms (~41 FPS)</td>
+                <td class="p-3">97.01% (2.99% abstain)</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 font-bold text-[10px]">ULTRA-LIGHTWEIGHT</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="overflow-x-auto rounded-xl border border-white/[0.08]">
-        <table class="w-full text-left border-collapse text-xs font-mono">
-          <thead>
-            <tr class="bg-black/60 text-slate-300 border-b border-white/[0.10]">
-              <th class="p-2.5">Architecture</th>
-              <th class="p-2.5">Params</th>
-              <th class="p-2.5">File Size</th>
-              <th class="p-2.5">CPU Latency</th>
-              <th class="p-2.5">Macro-F1</th>
-              <th class="p-2.5">Role</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-white/[0.06]">
-            <tr class="bg-tealAccent/5">
-              <td class="p-2.5 font-bold text-white">ResNet-18 (TorchScript)</td>
-              <td class="p-2.5 text-slate-300">11.18 M</td>
-              <td class="p-2.5 text-slate-300">42.79 MB</td>
-              <td class="p-2.5 text-tealAccent font-bold">43.60 ms</td>
-              <td class="p-2.5 text-passEmerald font-bold">0.9660</td>
-              <td class="p-2.5 text-tealAccent font-bold">Accuracy Leader</td>
-            </tr>
-            <tr>
-              <td class="p-2.5 font-bold text-slate-200">ResNet-18 (Dynamic INT8)</td>
-              <td class="p-2.5 text-slate-300">11.18 M</td>
-              <td class="p-2.5 text-slate-300">42.69 MB</td>
-              <td class="p-2.5 text-slate-300">50.53 ms</td>
-              <td class="p-2.5 text-slate-300 font-bold">0.9639</td>
-              <td class="p-2.5 text-slate-400">Quantized</td>
-            </tr>
-            <tr>
-              <td class="p-2.5 font-bold text-goldAccent">MobileNetV3-Small</td>
-              <td class="p-2.5 text-slate-300">1.52 M</td>
-              <td class="p-2.5 text-goldAccent font-bold">6.22 MB (7.2x smaller)</td>
-              <td class="p-2.5 text-tealAccent font-bold">24.10 ms</td>
-              <td class="p-2.5 text-slate-300 font-bold">0.9185</td>
-              <td class="p-2.5 text-goldAccent font-bold">Edge Efficiency</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Dual Process Pinning Diagram -->
-      <div class="p-3.5 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-2">
-        <h3 class="text-xs font-mono font-bold text-slate-200">Quad Cortex-A76 Process Isolation Diagram</h3>
-        <div class="grid grid-cols-2 gap-3 text-xs font-mono">
-          <div class="p-2.5 rounded-lg border border-tealAccent/30 bg-tealAccent/10 space-y-1">
-            <span class="text-tealAccent font-bold block">CPU CORES 0 & 1 (Vision)</span>
-            <span class="text-slate-300 block text-[11px]">eBeam De-artifacting + ResNet-18</span>
-            <span class="text-slate-100 font-bold text-[11px]">Throughput: ~23 FPS (No Blocking)</span>
+      <!-- Diagnostic Visual Plots Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="glass-card p-3 space-y-2">
+          <span class="text-xs font-mono text-slate-300 block font-semibold">1. Confusion Matrix (Macro-F1: 0.9660)</span>
+          <div class="bg-black/40 rounded-lg overflow-hidden border border-white/5">
+            <img src="/outputs/confusion_matrix.png" alt="Confusion Matrix" class="w-full object-contain"/>
           </div>
-          <div class="p-2.5 rounded-lg border border-goldAccent/30 bg-goldAccent/10 space-y-1">
-            <span class="text-goldAccent font-bold block">CPU CORES 2 & 3 (Advisor)</span>
-            <span class="text-slate-300 block text-[11px]">BM25 SOP + ExecuTorch Llama 3.2 1B</span>
-            <span class="text-slate-100 font-bold text-[11px]">Latency: ~480ms TTFT, 5 tok/s</span>
+        </div>
+        <div class="glass-card p-3 space-y-2">
+          <span class="text-xs font-mono text-slate-300 block font-semibold">2. Confidence Sweep (Abstain Policy τ=0.55)</span>
+          <div class="bg-black/40 rounded-lg overflow-hidden border border-white/5">
+            <img src="/outputs/threshold_sweep.png" alt="Threshold Sweep" class="w-full object-contain"/>
+          </div>
+        </div>
+        <div class="glass-card p-3 space-y-2">
+          <span class="text-xs font-mono text-slate-300 block font-semibold">3. Training Dynamics (Loss &amp; F1 Curves)</span>
+          <div class="bg-black/40 rounded-lg overflow-hidden border border-white/5">
+            <img src="/outputs/training_curves.png" alt="Training Curves" class="w-full object-contain"/>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Right: Embedded Confusion Matrix & Abstain Curves -->
-    <div class="xl:col-span-6 glass-card p-5 space-y-4">
-      <div class="pb-3 border-b border-white/[0.08]">
-        <h2 class="text-xs uppercase tracking-wider text-slate-300 font-mono font-bold">Diagnostic Visualizations</h2>
-        <div class="text-base font-bold text-white mt-0.5">Empirical Confusion Matrix & Abstain Curves</div>
-      </div>
+  </main>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="space-y-1.5">
-          <span class="text-xs font-mono font-bold text-slate-200 block">Test Confusion Matrix (Macro-F1: 0.9660)</span>
-          <img src="/outputs/confusion_matrix.png" alt="Confusion Matrix" class="w-full rounded-xl border border-white/[0.10] bg-black/40" onerror="this.src='docs/confusion_matrix.png'"/>
-        </div>
-        <div class="space-y-1.5">
-          <span class="text-xs font-mono font-bold text-slate-200 block">Threshold Sweep (Operating Point τ=0.55)</span>
-          <img src="/outputs/threshold_sweep.png" alt="Threshold Sweep" class="w-full rounded-xl border border-white/[0.10] bg-black/40" onerror="this.src='docs/threshold_sweep.png'"/>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Notification Toast -->
-<div id="toast" class="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-xl border border-tealAccent/50 bg-[#0A1215]/95 text-xs font-mono font-bold text-slate-100 shadow-2xl backdrop-blur-md transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2.5">
-  <span class="w-2.5 h-2.5 rounded-full bg-tealAccent"></span>
-  <span id="toast-text">System telemetry updated</span>
-</div>
-
-<!-- ========================================================================= -->
-<!-- 7. COMPLETE SELF-CONTAINED CONTROLLER SCRIPT                              -->
-<!-- ========================================================================= -->
-<script>
-  const API_BASE = window.location.origin.includes(':8000') ? window.location.origin : 'http://127.0.0.1:8000';
-  let isBackendConnected = false;
-
-  const state = {
-    selectedClass: 'bridge',
-    activeNodeIndex: 0,
-    semViewMode: 'proc',
-    currentTab: 'live',
-    isPaused: false,
-    activeImageDataUrl: null,
-    nodes: [
-      { id: 'EVT-9402', die: '[R14, C09]', conf: '99.8%', kdi: 0.912, disp: 'SCRAP', hash: 'd4a97ef1', type: 'bridge', area: '184 px²', lat: '43.5 ms' },
-      { id: 'EVT-9401', die: '[R12, C11]', conf: '98.4%', kdi: 0.884, disp: 'SCRAP', hash: '8f2a1b9c', type: 'bridge', area: '172 px²', lat: '42.9 ms' },
-      { id: 'EVT-9398', die: '[R15, C08]', conf: '99.2%', kdi: 0.931, disp: 'SCRAP', hash: '3e1c9d44', type: 'bridge', area: '210 px²', lat: '44.1 ms' },
-      { id: 'EVT-9394', die: '[R10, C14]', conf: '97.6%', kdi: 0.865, disp: 'SCRAP', hash: 'fa440e21', type: 'bridge', area: '160 px²', lat: '41.8 ms' },
-      { id: 'EVT-9390', die: '[R18, C06]', conf: '96.9%', kdi: 0.795, disp: 'SCRAP', hash: '7c88b012', type: 'bridge', area: '148 px²', lat: '43.0 ms' },
-      { id: 'EVT-9385', die: '[R08, C16]', conf: '98.1%', kdi: 0.890, disp: 'SCRAP', hash: 'bb1249fa', type: 'bridge', area: '195 px²', lat: '42.4 ms' },
-      { id: 'EVT-9381', die: '[R21, C05]', conf: '97.3%', kdi: 0.840, disp: 'SCRAP', hash: 'a129ef99', type: 'bridge', area: '155 px²', lat: '43.7 ms' },
-      { id: 'EVT-9377', die: '[R11, C13]', conf: '99.0%', kdi: 0.905, disp: 'SCRAP', hash: 'c509aa44', type: 'bridge', area: '188 px²', lat: '42.6 ms' }
-    ]
-  };
-
-  // Switch Tabs
-  function switchTab(tabName) {
-    state.currentTab = tabName;
-    ['live', 'advisor', 'audit', 'bench'].forEach(t => {
-      const el = document.getElementById(`tab-content-${t}`);
-      const btn = document.getElementById(`tab-btn-${t}`);
-      const indicator = document.getElementById(`tab-indicator-${t}`);
-      if (el && btn && indicator) {
-        if (t === tabName) {
-          el.classList.remove('hidden');
-          el.classList.add(t === 'live' ? 'active' : 'active-flex');
-          btn.classList.add('text-white');
-          btn.classList.remove('text-slate-400');
-          indicator.classList.remove('hidden');
-        } else {
-          el.classList.add('hidden');
-          el.classList.remove('active', 'active-flex');
-          btn.classList.remove('text-white');
-          btn.classList.add('text-slate-400');
-          indicator.classList.add('hidden');
-        }
-      }
-    });
-
-    if (tabName === 'live') {
-      requestAnimationFrame(() => {
-        updateConnectingCurves();
-        drawWafer();
-        drawDetailSem();
-      });
-    } else if (tabName === 'audit') {
-      loadLiveAuditEvents();
-    } else if (tabName === 'advisor') {
-      loadSops();
-    }
-  }
-
-  // Draw Realistic 300mm Silicon Wafer
-  function drawWafer() {
-    const canvas = document.getElementById('wafer-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-    const r = (w / 2) - 12;
-    const cx = w / 2;
-    const cy = h / 2;
-
-    ctx.clearRect(0, 0, w, h);
-
-    // Wafer Outer Rim
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#0a1317';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(95, 208, 196, 0.45)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Alignment Notch
-    ctx.beginPath();
-    ctx.arc(cx, cy + r, 5.5, Math.PI, 0);
-    ctx.fillStyle = '#060B0D';
-    ctx.fill();
-    ctx.strokeStyle = '#E8C170';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Inner concentric guide rings
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.stroke();
-
-    // Die Grid Matrix
-    const dieSize = 9;
-    const gap = 2;
-    const step = dieSize + gap;
-    const startX = cx - (r - 10);
-    const endX = cx + (r - 10);
-    const startY = cy - (r - 10);
-    const endY = cy + (r - 10);
-
-    for (let x = startX; x <= endX; x += step) {
-      for (let y = startY; y <= endY; y += step) {
-        const dist = Math.hypot(x + dieSize / 2 - cx, y + dieSize / 2 - cy);
-        if (dist > r - 7) continue;
-
-        const hashVal = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-        const pseudo = hashVal - Math.floor(hashVal);
-
-        let color = 'rgba(16, 185, 129, 0.45)'; // Pass
-        if (pseudo > 0.94) color = 'rgba(239, 68, 68, 0.90)'; // Scrap
-        else if (pseudo > 0.86) color = 'rgba(245, 158, 11, 0.75)'; // Rework
-
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, dieSize, dieSize);
-      }
-    }
-
-    // Highlight Active Die
-    const activeDieX = cx - 24;
-    const activeDieY = cy + 18;
-
-    ctx.beginPath();
-    ctx.arc(activeDieX + dieSize / 2, activeDieY + dieSize / 2, 14, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(232, 193, 112, 0.40)';
-    ctx.fill();
-
-    ctx.fillStyle = '#E8C170';
-    ctx.fillRect(activeDieX, activeDieY, dieSize, dieSize);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(activeDieX - 1, activeDieY - 1, dieSize + 2, dieSize + 2);
-  }
-
-  // Render Arc Event Nodes
-  function renderEventNodes() {
-    const container = document.getElementById('event-nodes-container');
-    if (!container) return;
-    container.innerHTML = '';
-
-    state.nodes.forEach((node, idx) => {
-      const isSelected = idx === state.activeNodeIndex;
-      let opacityClass = 'opacity-100';
-      if (idx === 0 || idx === state.nodes.length - 1) opacityClass = 'opacity-70';
-      else if (idx === 1 || idx === state.nodes.length - 2) opacityClass = 'opacity-90';
-
-      const card = document.createElement('div');
-      card.id = `node-${idx}`;
-      card.className = `p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${opacityClass} ${
-        isSelected 
-          ? 'node-selected bg-slate-800/90 border-goldAccent text-white' 
-          : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-200'
-      }`;
-      card.onclick = () => selectEventNode(idx);
-
-      let severityBar = 'bg-scrapCrimson';
-      if (node.disp === 'REWORK') severityBar = 'bg-reworkAmber';
-      if (node.disp === 'PASS') severityBar = 'bg-passEmerald';
-
-      card.innerHTML = `
-        <div class="flex items-center gap-2 min-w-0">
-          <div class="w-1.5 h-7 rounded-full ${severityBar} shrink-0"></div>
-          <div class="w-8 h-8 rounded bg-black/70 border border-white/10 shrink-0 flex items-center justify-center overflow-hidden">
-            <span class="text-[10px] font-mono font-bold text-tealAccent">${node.type.slice(0, 3).toUpperCase()}</span>
-          </div>
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs font-mono font-bold text-white truncate">${node.die}</span>
-              <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.08] text-tealAccent font-bold">${node.conf}</span>
-            </div>
-            <span class="text-[11px] font-mono text-slate-300 block truncate">${node.id} · ${node.area}</span>
-          </div>
-        </div>
-        <div class="text-right shrink-0">
-          <span class="px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider rounded border ${
-            node.disp === 'SCRAP' ? 'border-scrapCrimson/50 text-scrapCrimson bg-scrapCrimson/15' :
-            node.disp === 'REWORK' ? 'border-reworkAmber/50 text-reworkAmber bg-reworkAmber/15' :
-            'border-passEmerald/50 text-passEmerald bg-passEmerald/15'
-          }">${node.disp}</span>
-          <span class="block text-[10px] font-mono text-slate-400 mt-0.5">VERIFIED</span>
-        </div>
-      `;
-      container.appendChild(card);
-    });
-
-    requestAnimationFrame(updateConnectingCurves);
-  }
-
-  // Smooth Bezier Fanning Curves
-  function updateConnectingCurves() {
-    const svg = document.getElementById('curve-svg');
-    const selectedBtn = document.getElementById('btn-class-bridge');
-    const container = document.getElementById('event-nodes-container');
-    if (!svg || !selectedBtn || !container) return;
-
-    const svgRect = svg.getBoundingClientRect();
-    const btnRect = selectedBtn.getBoundingClientRect();
-
-    const startX = btnRect.right - svgRect.left;
-    const startY = btnRect.top + (btnRect.height / 2) - svgRect.top;
-
-    let paths = '';
-    state.nodes.forEach((_, idx) => {
-      const nodeEl = document.getElementById(`node-${idx}`);
-      if (!nodeEl) return;
-      const nRect = nodeEl.getBoundingClientRect();
-
-      const endX = nRect.left - svgRect.left;
-      const endY = nRect.top + (nRect.height / 2) - svgRect.top;
-
-      const dx = endX - startX;
-      const cp1x = startX + dx * 0.45;
-      const cp1y = startY;
-      const cp2x = startX + dx * 0.55;
-      const cp2y = endY;
-
-      const isCur = idx === state.activeNodeIndex;
-      const stroke = isCur ? '#E8C170' : 'rgba(95, 208, 196, 0.25)';
-      const width = isCur ? '2.2' : '1';
-
-      paths += `<path d="M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}" fill="none" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${isCur ? 'none' : '3 3'}"/>`;
-    });
-    svg.innerHTML = paths;
-  }
-
-  // Render SEM Crop Canvas
-  function drawDetailSem() {
-    const canvas = document.getElementById('sem-detail-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-    const isRaw = state.semViewMode === 'raw';
-
-    ctx.clearRect(0, 0, w, h);
-
-    // If a user uploaded a real image, draw it!
-    if (state.activeImageDataUrl) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, w, h);
-        if (isRaw) {
-          // Add charging flare artifact over it for raw demonstration
-          const flare = ctx.createRadialGradient(w/2 - 30, h/2 - 20, 10, w/2, h/2, 120);
-          flare.addColorStop(0, 'rgba(255,255,255,0.3)');
-          flare.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.fillStyle = flare;
-          ctx.fillRect(0, 0, w, h);
-        }
-      };
-      img.src = state.activeImageDataUrl;
-      return;
-    }
-
-    // Default High-Precision Silicon Pattern
-    ctx.fillStyle = isRaw ? '#0d131a' : '#080d11';
-    ctx.fillRect(0, 0, w, h);
-
-    const pitch = 16;
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = isRaw ? '#2b3846' : '#3e4f5e';
-
-    for (let x = 12; x < w; x += pitch) {
-      ctx.beginPath();
-      let jitter = isRaw ? (Math.random() - 0.5) * 1.8 : 0;
-      ctx.moveTo(x + jitter, 0);
-      ctx.lineTo(x + jitter, h);
-      ctx.stroke();
-    }
-
-    const cur = state.nodes[state.activeNodeIndex];
-    const centerX = w / 2;
-    const centerY = h / 2 - 10;
-
-    if (cur.type === 'bridge') {
-      ctx.fillStyle = isRaw ? '#607082' : '#cbd5e1';
-      ctx.fillRect(centerX - 18, centerY - 8, 36, 16);
-      if (!isRaw) {
-        ctx.strokeStyle = '#EF4444';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(centerX - 19, centerY - 9, 38, 18);
-      }
-    } else if (cur.type === 'particle') {
-      ctx.fillStyle = '#E8C170';
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    if (isRaw) {
-      const flare = ctx.createRadialGradient(centerX - 40, centerY - 20, 5, centerX - 40, centerY - 20, 100);
-      flare.addColorStop(0, 'rgba(255, 255, 255, 0.32)');
-      flare.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = flare;
-      ctx.fillRect(0, 0, w, h);
-    }
-  }
-
-  function toggleSemMode(mode) {
-    state.semViewMode = mode;
-    const btnRaw = document.getElementById('btn-view-raw');
-    const btnProc = document.getElementById('btn-view-proc');
-    const reticle = document.getElementById('sem-reticle');
-
-    if (mode === 'proc') {
-      btnProc.className = 'px-2.5 py-0.5 rounded-md text-white bg-white/15 font-bold';
-      btnRaw.className = 'px-2.5 py-0.5 rounded-md text-slate-300 hover:text-white font-medium';
-      if (reticle) reticle.style.display = 'block';
-    } else {
-      btnRaw.className = 'px-2.5 py-0.5 rounded-md text-white bg-white/15 font-bold';
-      btnProc.className = 'px-2.5 py-0.5 rounded-md text-slate-300 hover:text-white font-medium';
-      if (reticle) reticle.style.display = 'none';
-    }
-    drawDetailSem();
-  }
-
-  function selectDefectClass(type, el) {
-    state.selectedClass = type;
-    document.querySelectorAll('.defect-class-btn').forEach(b => {
-      b.classList.remove('gold-selected-card');
-      b.classList.add('border-white/[0.10]', 'bg-white/[0.03]');
-    });
-    el.classList.add('gold-selected-card');
-    el.classList.remove('border-white/[0.10]', 'bg-white/[0.03]');
-    document.getElementById('active-class-pill').textContent = type.toUpperCase();
-    showToast(`Filtered: ${type.toUpperCase()}`);
-    updateConnectingCurves();
-  }
-
-  function selectEventNode(idx) {
-    state.activeNodeIndex = idx;
-    const node = state.nodes[idx];
-
-    document.getElementById('detail-header-title').textContent = `${node.type.toUpperCase()} · DIE ${node.die}`;
-    document.getElementById('detail-header-hash').textContent = node.hash;
-    document.getElementById('detail-kdi-value').textContent = `${node.kdi.toFixed(3)} / 1.000`;
-    document.getElementById('detail-kdi-indicator').style.left = `${Math.min(98, node.kdi * 100)}%`;
-    document.getElementById('tele-lat').textContent = node.lat;
-    document.getElementById('tele-area').textContent = node.area;
-    document.getElementById('tele-slot').textContent = `Slot 08, ${node.die}`;
-    document.getElementById('audit-sha-preview').textContent = `${node.hash.slice(0, 4)}...${node.hash.slice(-4)}`;
-
-    const dispBadge = document.getElementById('detail-disp-badge');
-    dispBadge.textContent = node.disp;
-    if (node.disp === 'SCRAP') {
-      dispBadge.className = 'px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-scrapCrimson/60 text-scrapCrimson bg-scrapCrimson/15 shadow-[0_0_14px_rgba(239,68,68,0.25)]';
-    } else if (node.disp === 'REWORK') {
-      dispBadge.className = 'px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-reworkAmber/60 text-reworkAmber bg-reworkAmber/15 shadow-[0_0_14px_rgba(245,158,11,0.25)]';
-    } else {
-      dispBadge.className = 'px-3 py-1 text-xs font-mono font-bold tracking-wider rounded-md border border-passEmerald/60 text-passEmerald bg-passEmerald/15 shadow-[0_0_14px_rgba(16,185,129,0.25)]';
-    }
-
-    renderEventNodes();
-    drawDetailSem();
-  }
-
-  // Live Backend Inspection via File Upload
-  async function handleUserUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    showToast(`Uploading ${file.name} to edge inference engine...`);
-
-    // Preview uploaded image
-    const reader = new FileReader();
-    reader.onload = (re) => {
-      state.activeImageDataUrl = re.target.result;
-      drawDetailSem();
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT CONTROLLER (Live Data Binding & Interactive View Switching)    -->
+  <!-- ========================================================================= -->
+  <script>
+    // State
+    let currentVisuals = {
+      raw: '',
+      deartifacted: '',
+      overlay: '',
+      heatmap: '',
+      sobel: ''
     };
-    reader.readAsDataURL(file);
+    let currentMode = 'overlay';
 
-    // Call live backend if available
-    try {
+    // Diagnostic Mode Switcher (OVERLAY, HEATMAP, SOBEL, DE-ARTIFACTED)
+    function setDiagnosticMode(mode) {
+      currentMode = mode;
+      const btnIds = {
+        'overlay': 'btn-mode-overlay',
+        'heatmap': 'btn-mode-heatmap',
+        'sobel': 'btn-mode-sobel',
+        'deartifacted': 'btn-mode-deartifacted'
+      };
+
+      // Reset all buttons
+      Object.keys(btnIds).forEach(m => {
+        const btn = document.getElementById(btnIds[m]);
+        if (btn) {
+          if (m === mode) {
+            btn.className = 'mode-btn-active px-2.5 py-1 rounded font-semibold transition-all';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all';
+          }
+        }
+      });
+
+      // Update image
+      const imgOutput = document.getElementById('img-output-diagnostic');
+      if (imgOutput && currentVisuals[mode]) {
+        imgOutput.src = currentVisuals[mode];
+      }
+
+      // Update watermark
+      const watermark = document.getElementById('mode-watermark');
+      if (watermark) {
+        const labels = {
+          'overlay': 'MODE: DEFECT OVERLAY (EXACT BOUNDING)',
+          'heatmap': 'MODE: DEFECT ANOMALY HEATMAP (JET)',
+          'sobel': 'MODE: SOBEL GRADIENT MAGNITUDE (TURBO)',
+          'deartifacted': 'MODE: AMAT DE-ARTIFACTED CLEAN'
+        };
+        watermark.textContent = labels[mode] || mode.toUpperCase();
+      }
+    }
+
+    // Switch Top Tabs
+    function switchTab(tabId) {
+      ['tab-review', 'tab-sops', 'tab-audit', 'tab-bench'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', id !== tabId);
+      });
+
+      const navBtns = {
+        'tab-review': 'nav-btn-review',
+        'tab-sops': 'nav-btn-sops',
+        'tab-audit': 'nav-btn-audit',
+        'tab-bench': 'nav-btn-bench'
+      };
+
+      Object.keys(navBtns).forEach(tId => {
+        const btn = document.getElementById(navBtns[tId]);
+        if (btn) {
+          if (tId === tabId) {
+            btn.className = 'nav-tab-active px-3 py-1.5 rounded-md font-medium border border-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5';
+          } else {
+            btn.className = 'px-3 py-1.5 rounded-md font-medium border border-transparent text-slate-400 hover:text-white transition-all flex items-center gap-1.5';
+          }
+        }
+      });
+
+      if (tabId === 'tab-sops') loadSOPs();
+      if (tabId === 'tab-audit') loadAuditEvents();
+    }
+
+    // Fetch and bind random test sample
+    async function fetchRandomSample(className) {
+      const btn = document.getElementById('btn-run-pipeline');
+      if (btn) btn.innerHTML = '<span>SCANNING...</span>';
+
+      try {
+        const url = className ? `/api/random_sample?class_name=${encodeURIComponent(className)}` : '/api/random_sample';
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        bindInspectionData(data);
+      } catch (err) {
+        console.error('Fetch sample error:', err);
+      } finally {
+        if (btn) btn.innerHTML = '<svg class="w-4 h-4 text-slate-950" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>RUN PIPELINE</span>';
+      }
+    }
+
+    // Handle Upload
+    async function handleFileUpload(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('pattern_type', 'line_space');
 
-      const res = await fetch(`${API_BASE}/api/inspect`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (res.ok) {
+      try {
+        const res = await fetch('/api/inspect', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
         const data = await res.json();
-        showToast(`Inferred: ${data.predicted_class.toUpperCase()} in ${data.timing_ms.total}ms`);
-
-        const newSample = {
-          id: `EVT-${data.event_id || 9500}`,
-          die: '[R14, C09]',
-          conf: `${(data.confidence * 100).toFixed(1)}%`,
-          kdi: data.kdi_score,
-          disp: data.disposition,
-          hash: data.image_hash || Math.random().toString(16).slice(2, 10),
-          type: data.predicted_class,
-          area: `${data.area_px} px²`,
-          lat: `${data.timing_ms.total} ms`
-        };
-
-        // Update advisor details from backend response
-        if (data.advisor) {
-          document.getElementById('adv-mech').textContent = data.advisor.root_cause_hypothesis || 'Defect anomaly detected';
-          document.getElementById('adv-action').textContent = data.advisor.recommended_action || 'Inspect tool settings';
-          if (data.advisor.cited_sop_ids && data.advisor.cited_sop_ids.length > 0) {
-            document.getElementById('sop-chips-container').innerHTML = `
-              <span class="px-2 py-0.5 text-xs font-mono font-bold rounded bg-tealAccent/15 text-tealAccent border border-tealAccent/30">
-                ${data.advisor.cited_sop_ids[0]}
-              </span>
-            `;
-          }
-        }
-
-        state.nodes.unshift(newSample);
-        if (state.nodes.length > 8) state.nodes.pop();
-        state.activeNodeIndex = 0;
-        selectEventNode(0);
-        return;
+        bindInspectionData(data);
+      } catch (err) {
+        alert('Inspection failed: ' + err.message);
       }
-    } catch (err) {
-      console.warn("Backend not reachable, running in offline demo mode:", err);
     }
 
-    // Offline fallback simulation
-    setTimeout(simulateNextSample, 300);
-  }
+    // Bind Data to UI
+    function bindInspectionData(data) {
+      // 1. Store visuals
+      if (data.visuals) {
+        currentVisuals = data.visuals;
+        document.getElementById('img-input-raw').src = currentVisuals.raw;
+        document.getElementById('img-output-diagnostic').src = currentVisuals[currentMode] || currentVisuals.overlay;
+      }
 
-  // Simulate Next Sample
-  function simulateNextSample() {
-    state.activeImageDataUrl = null;
-    const randomDie = `[R${Math.floor(10 + Math.random() * 12)}, C0${Math.floor(4 + Math.random() * 6)}]`;
-    const randomKdi = +(0.85 + Math.random() * 0.12).toFixed(3);
-    const newSample = {
-      id: `EVT-${Math.floor(9403 + Math.random() * 60)}`,
-      die: randomDie,
-      conf: '99.8%',
-      kdi: randomKdi,
-      disp: 'SCRAP',
-      hash: Math.random().toString(16).slice(2, 10),
-      type: 'bridge',
-      area: `${Math.floor(165 + Math.random() * 40)} px²`,
-      lat: `${(42.5 + Math.random() * 2).toFixed(1)} ms`
-    };
+      // 2. Banner updates
+      const pClass = (data.predicted_class || 'UNKNOWN').toUpperCase();
+      const pConf = ((data.confidence || 0) * 100).toFixed(2);
+      const disp = (data.disposition || 'SCRAP').toUpperCase();
+      const kdi = Number(data.kdi_score || 0).toFixed(3);
 
-    state.nodes.unshift(newSample);
-    if (state.nodes.length > 8) state.nodes.pop();
-    state.activeNodeIndex = 0;
-    selectEventNode(0);
-    showToast(`Inferred new SEM sample: ${newSample.id}`);
-  }
+      document.getElementById('text-predicted-class').innerHTML = `${pClass} <span class="text-base font-normal text-slate-400 font-sans">(${getClassDescription(pClass)})</span>`;
+      document.getElementById('text-confidence').textContent = `${pConf}%`;
+      document.getElementById('text-kdi').textContent = kdi;
+      document.getElementById('bar-kdi').style.width = `${Math.min(100, (data.kdi_score || 0) * 100)}%`;
 
-  // Toast Notification
-  function showToast(msg) {
-    const toast = document.getElementById('toast');
-    const toastText = document.getElementById('toast-text');
-    if (!toast || !toastText) return;
-    toastText.textContent = msg;
-    toast.classList.remove('translate-y-20', 'opacity-0');
-    setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 2500);
-  }
+      // Disposition badge
+      const dispBadge = document.getElementById('badge-disposition');
+      dispBadge.textContent = disp;
+      if (disp === 'PASS') {
+        dispBadge.className = 'px-2 py-0.5 rounded text-xs font-bold font-mono bg-passEmerald/20 text-passEmerald border border-passEmerald/40';
+      } else if (disp === 'REWORK') {
+        dispBadge.className = 'px-2 py-0.5 rounded text-xs font-bold font-mono bg-reworkAmber/20 text-reworkAmber border border-reworkAmber/40';
+      } else {
+        dispBadge.className = 'px-2 py-0.5 rounded text-xs font-bold font-mono bg-scrapCrimson/20 text-scrapCrimson border border-scrapCrimson/40';
+      }
 
-  // Load Real SQLite Audit Events from Backend
-  async function loadLiveAuditEvents() {
-    try {
-      const res = await fetch(`${API_BASE}/api/events?limit=30`);
-      if (res.ok) {
+      // Critical override badge
+      const ovBadge = document.getElementById('badge-override');
+      ovBadge.style.display = data.critical_override ? 'inline-block' : 'none';
+
+      // Bounding box & area
+      if (data.bbox) {
+        const [x1, y1, x2, y2] = data.bbox;
+        document.getElementById('text-bbox').textContent = `[x1: ${x1}, y1: ${y1}, x2: ${x2}, y2: ${y2}]`;
+      } else {
+        document.getElementById('text-bbox').textContent = '[None — Nominal Topography]';
+      }
+      document.getElementById('text-area').textContent = `${data.area_px || 0} px² (~${Math.round((data.area_px || 0) * 0.8)} nm²)`;
+
+      // Latency breakdown
+      const totalMs = data.timing_ms ? data.timing_ms.total : 43.60;
+      const deartMs = data.timing_ms ? data.timing_ms.deartifacting : 0.84;
+      const clsMs = data.timing_ms ? data.timing_ms.classification : 42.20;
+
+      document.getElementById('text-total-latency').textContent = `${totalMs.toFixed(2)} ms`;
+      document.getElementById('text-deart-time').textContent = `${deartMs.toFixed(2)} ms`;
+      document.getElementById('text-cls-time').textContent = `${clsMs.toFixed(2)} ms`;
+      document.getElementById('bar-deart-time').style.width = `${Math.min(100, (deartMs / totalMs) * 100)}%`;
+      document.getElementById('bar-cls-time').style.width = `${Math.min(100, (clsMs / totalMs) * 100)}%`;
+      document.getElementById('stat-latency').textContent = `${totalMs.toFixed(2)} ms // ${(1000 / totalMs).toFixed(1)} FPS`;
+
+      // Audit Record
+      if (data.event_id) {
+        document.getElementById('text-audit-id').textContent = `Event #${data.event_id} • Logged & Verified`;
+      }
+
+      // Advisor binding
+      if (data.advisor) {
+        const adv = data.advisor;
+        if (adv.cited_sops && adv.cited_sops.length > 0) {
+          document.getElementById('text-adv-sop').textContent = adv.cited_sops[0];
+        }
+        if (adv.root_cause) {
+          document.getElementById('text-adv-root-cause').textContent = adv.root_cause;
+        }
+        if (adv.corrective_actions && Array.isArray(adv.corrective_actions)) {
+          const listEl = document.getElementById('list-adv-actions');
+          listEl.innerHTML = '';
+          adv.corrective_actions.forEach(act => {
+            const li = document.createElement('li');
+            li.textContent = act;
+            listEl.appendChild(li);
+          });
+        }
+      }
+    }
+
+    function getClassDescription(c) {
+      const desc = {
+        'BRIDGE': 'Conductive Short Circuit',
+        'PARTICLE': 'Surface Contaminant',
+        'SCRATCH': 'CMP Abrasive Gouge',
+        'CLEAN': 'Nominal Defect-Free Topography',
+        'NUISANCE_CHARGING': 'Scanning eBeam Charge Artifact',
+        'NUISANCE_JITTER': 'Scan-line Displacement Artifact',
+        'UNKNOWN': 'Out-of-Distribution Rejection'
+      };
+      return desc[c] || 'Inspected Pattern';
+    }
+
+    function runPipelineAction() {
+      fetchRandomSample();
+    }
+
+    // Load SOPs
+    async function loadSOPs() {
+      try {
+        const res = await fetch('/api/sops');
+        const sops = await res.json();
+        const container = document.getElementById('sop-cards-container');
+        if (!container) return;
+        container.innerHTML = '';
+        sops.forEach(s => {
+          const card = document.createElement('div');
+          card.className = 'glass-card p-4 space-y-2';
+          card.innerHTML = `
+            <div class="flex items-center justify-between border-b border-white/10 pb-2">
+              <span class="font-mono text-xs font-bold text-tealAccent">${s.sop_id || 'SOP'}</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">${s.process_area || 'Fab'}</span>
+            </div>
+            <h4 class="font-semibold text-sm text-white">${s.title || 'Standard Operating Procedure'}</h4>
+            <p class="text-xs text-slate-300 leading-relaxed">${s.summary || ''}</p>
+            <div class="pt-2 text-[11px] font-mono text-slate-400">
+              Trigger: <span class="text-goldAccent">${s.trigger_defect || 'Defect'}</span> (Severity ≥ ${s.severity_threshold || '0.5'})
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (e) {
+        console.error('Failed to load SOPs:', e);
+      }
+    }
+
+    // Load Audit Events
+    async function loadAuditEvents() {
+      try {
+        const res = await fetch('/api/events?limit=30');
         const events = await res.json();
         const tbody = document.getElementById('audit-table-body');
-        if (!tbody || events.length === 0) return;
-
+        if (!tbody) return;
         tbody.innerHTML = '';
         events.forEach(ev => {
           const tr = document.createElement('tr');
-          tr.className = 'hover:bg-white/[0.04] transition-colors';
+          tr.className = 'hover:bg-white/5 transition-colors';
+          const dispColor = ev.disposition === 'PASS' ? 'text-passEmerald' : (ev.disposition === 'REWORK' ? 'text-reworkAmber' : 'text-scrapCrimson');
           tr.innerHTML = `
-            <td class="p-3 font-bold text-white">#${ev.event_id}</td>
-            <td class="p-3 text-slate-300">${(ev.timestamp || '').slice(0, 19).replace('T', ' ')}</td>
-            <td class="p-3 text-tealAccent">${(ev.image_hash || '').slice(0, 8)}...</td>
-            <td class="p-3 font-bold text-slate-100">${ev.predicted_class}</td>
-            <td class="p-3 text-slate-300">${(ev.confidence * 100).toFixed(1)}%</td>
-            <td class="p-3 font-bold text-slate-200">${Number(ev.kdi_score).toFixed(3)}</td>
-            <td class="p-3">
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
-                ev.disposition === 'SCRAP' ? 'text-scrapCrimson bg-scrapCrimson/15 border border-scrapCrimson/40' :
-                ev.disposition === 'REWORK' ? 'text-reworkAmber bg-reworkAmber/15 border border-reworkAmber/40' :
-                'text-passEmerald bg-passEmerald/15 border border-passEmerald/40'
-              }">${ev.disposition}</span>
-            </td>
-            <td class="p-3 text-tealAccent font-bold">${Number(ev.processing_time_ms).toFixed(1)} ms</td>
-            <td class="p-3 text-slate-300">${ev.advisor_source || 'LLAMA'}</td>
+            <td class="p-3 text-slate-400">#${ev.id}</td>
+            <td class="p-3 text-tealAccent truncate max-w-[120px]" title="${ev.image_hash || ''}">${(ev.image_hash || '').substring(0, 10)}...</td>
+            <td class="p-3 font-semibold text-white">${ev.predicted_class}</td>
+            <td class="p-3">${(ev.confidence * 100).toFixed(1)}%</td>
+            <td class="p-3">${Number(ev.kdi_score || 0).toFixed(3)}</td>
+            <td class="p-3 font-bold ${dispColor}">${ev.disposition}</td>
+            <td class="p-3 text-slate-400">${Number(ev.processing_time_ms || 43).toFixed(1)} ms</td>
+            <td class="p-3 text-slate-300">${ev.advisor_source || 'TEMPLATE'}</td>
+            <td class="p-3 text-slate-500 text-[10px]">${(ev.timestamp || '').substring(0, 19)}</td>
           `;
           tbody.appendChild(tr);
         });
+      } catch (e) {
+        console.error('Failed to load audit events:', e);
       }
-    } catch (e) {
-      console.log("Audit log backend fetch unavailable:", e);
-    }
-  }
-
-  // Load Real SOPs into Knowledge Base tab
-  async function loadSops() {
-    const container = document.getElementById('sop-list-container');
-    if (!container) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/api/sops`);
-      if (res.ok) {
-        const sops = await res.json();
-        if (sops.length > 0) {
-          container.innerHTML = '';
-          sops.forEach(sop => {
-            const card = document.createElement('div');
-            card.className = 'p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1 hover:border-tealAccent/30 transition-colors';
-            card.innerHTML = `
-              <div class="flex items-center justify-between font-mono">
-                <span class="text-xs font-bold text-tealAccent">${sop.sop_id}</span>
-                <span class="text-[10px] px-1.5 py-0.2 rounded bg-white/[0.08] text-slate-300 font-bold">${sop.process_area}</span>
-              </div>
-              <div class="text-xs font-bold text-white font-sans">${sop.title}</div>
-              <div class="text-[11px] text-slate-300 font-sans leading-relaxed">
-                <strong>Probable Cause:</strong> ${(sop.root_causes || [''])[0]}
-              </div>
-            `;
-            container.appendChild(card);
-          });
-          return;
-        }
-      }
-    } catch (e) {
-      console.log("SOPs fetch fallback:", e);
     }
 
-    // Default Fallback display if backend offline
-    container.innerHTML = `
-      <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
-        <div class="flex justify-between font-mono text-xs font-bold text-tealAccent"><span>SOP-LIT-01</span><span>Lithography</span></div>
-        <div class="text-xs font-bold text-white">Focus Drift</div>
-        <p class="text-[11px] text-slate-300">Wafer chuck z-stage positioning deviation or thermal drift during stepper exposure.</p>
-      </div>
-      <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
-        <div class="flex justify-between font-mono text-xs font-bold text-tealAccent"><span>SOP-ETC-01</span><span>Etch</span></div>
-        <div class="text-xs font-bold text-white">Plasma Etch Polymer Residue</div>
-        <p class="text-[11px] text-slate-300">Excessive passivation chemistry (CF4/CHF3 ratio skew) during trench etch.</p>
-      </div>
-      <div class="p-3 rounded-xl border border-white/[0.08] bg-white/[0.03] space-y-1">
-        <div class="flex justify-between font-mono text-xs font-bold text-tealAccent"><span>SOP-CMP-01</span><span>CMP</span></div>
-        <div class="text-xs font-bold text-white">Slurry Particle Agglomeration</div>
-        <p class="text-[11px] text-slate-300">Point-of-use filter rupture causing secondary particle clustering above 0.5 um.</p>
-      </div>
-    `;
-  }
-
-  // Download CSV
-  function downloadAuditCsv() {
-    window.open(`${API_BASE}/api/export_csv`, '_blank');
-  }
-
-  // Periodic Backend Sync & Telemetry Jitter
-  async function syncBackendStats() {
-    try {
-      const [sumRes, qRes] = await Promise.all([
-        fetch(`${API_BASE}/api/summary`),
-        fetch(`${API_BASE}/api/queue`)
-      ]);
-
-      if (sumRes.ok && qRes.ok) {
-        const sum = await sumRes.json();
-        const q = await qRes.json();
-        isBackendConnected = true;
-
-        document.getElementById('backend-status-pill').textContent = 'LIVE BACKEND (:8000)';
-        document.getElementById('backend-status-pill').className = 'px-2.5 py-0.5 text-xs font-mono font-bold tracking-wide rounded-full border border-passEmerald/50 text-passEmerald bg-passEmerald/15';
-
-        if (sum.total_inspected > 0) {
-          const pass = sum.by_disposition.PASS || 0;
-          const rework = sum.by_disposition.REWORK || 0;
-          const scrap = sum.by_disposition.SCRAP || 0;
-          const total = sum.total_inspected;
-
-          document.getElementById('stat-total-dies').textContent = `${total} Dies`;
-          document.getElementById('count-pass').textContent = pass;
-          document.getElementById('count-rework').textContent = rework;
-          document.getElementById('count-scrap').textContent = scrap;
-
-          const yieldPct = ((pass / total) * 100).toFixed(1);
-          document.getElementById('stat-yield-pct').textContent = `${yieldPct}%`;
-          document.getElementById('yield-bar-pass').style.width = `${(pass/total)*100}%`;
-          document.getElementById('yield-bar-rework').style.width = `${(rework/total)*100}%`;
-          document.getElementById('yield-bar-scrap').style.width = `${(scrap/total)*100}%`;
-        }
-
-        document.getElementById('stat-queue').textContent = `${q.pending || 0} Pending`;
-        if (sum.avg_processing_time_ms > 0) {
-          document.getElementById('stat-vision').textContent = `${sum.avg_processing_time_ms} ms (${(1000/sum.avg_processing_time_ms).toFixed(0)} FPS)`;
-        }
-      }
-    } catch (e) {
-      document.getElementById('backend-status-pill').textContent = 'AIR-GAPPED SIMULATOR';
-      document.getElementById('backend-status-pill').className = 'px-2.5 py-0.5 text-xs font-mono font-bold tracking-wide rounded-full border border-tealAccent/40 text-tealAccent bg-tealAccent/10';
-    }
-
-    // Telemetry Jitter for Live Cleanroom Feel
-    if (!state.isPaused) {
-      document.getElementById('stat-temp').textContent = `${(50.8 + Math.random() * 1.5).toFixed(1)}°C`;
-    }
-  }
-
-  // Keyboard Navigation
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' || e.key === 'j') {
-      e.preventDefault();
-      selectEventNode(Math.min(state.nodes.length - 1, state.activeNodeIndex + 1));
-    } else if (e.key === 'ArrowUp' || e.key === 'k') {
-      e.preventDefault();
-      selectEventNode(Math.max(0, state.activeNodeIndex - 1));
-    }
-  });
-
-  window.addEventListener('resize', updateConnectingCurves);
-
-  // Initialize
-  window.addEventListener('DOMContentLoaded', () => {
-    drawWafer();
-    renderEventNodes();
-    drawDetailSem();
-    syncBackendStats();
-    setInterval(syncBackendStats, 3000);
-  });
-</script>
+    // Initial Load: Fetch a random sample automatically on startup
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchRandomSample('bridge');
+    });
+  </script>
 </body>
 </html>

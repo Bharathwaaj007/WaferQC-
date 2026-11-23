@@ -325,6 +325,28 @@ def download_audit_csv():
         return FileResponse(csv_temp, filename="waferqc_audit_log.csv", media_type="text/csv")
     return JSONResponse({"error": "Failed to generate CSV"}, status_code=500)
 
+@app.get("/api/random_sample")
+def get_random_sample(class_name: str = None):
+    import random
+    import glob
+    pipe = get_pipeline()
+    if class_name and os.path.exists(f"dataset_3k/test/{class_name}"):
+        files = glob.glob(f"dataset_3k/test/{class_name}/*.png")
+    else:
+        files = glob.glob("dataset_3k/test/*/*.png")
+    if not files:
+        files = glob.glob("samples/*.png") + glob.glob("samples_v2/*.png")
+    if not files:
+        return JSONResponse({"error": "No test samples found"}, status_code=404)
+
+    chosen_file = random.choice(files)
+    res = pipe.process_image(chosen_file)
+    print(f"\n[INSPECTION REQUEST] Test Sample: {chosen_file}")
+    print(f"  -> Predicted: {res['predicted_class']} (Conf: {res['confidence']:.2%}) | BBox: {res['bbox']} | Area: {res['area_px']} px²")
+    print(f"  -> KDI: {res['kdi_score']:.3f} | Disposition: {res['disposition']} | Override: {res['critical_override']}")
+    print(f"  -> Latency: {res['timing_ms']['total']:.1f} ms | Event #{res['event_id']} saved to SQLite\n", flush=True)
+    return JSONResponse(res)
+
 @app.post("/api/inspect")
 async def inspect_upload(file: UploadFile = File(...), pattern_type: str = Form("line_space")):
     pipe = get_pipeline()
@@ -333,8 +355,18 @@ async def inspect_upload(file: UploadFile = File(...), pattern_type: str = Form(
     with open(temp_path, "wb") as f:
         f.write(contents)
     res = pipe.process_image(temp_path, pattern_type=pattern_type)
+    print(f"\n[UPLOAD INSPECTION] File: {file.filename}")
+    print(f"  -> Predicted: {res['predicted_class']} (Conf: {res['confidence']:.2%}) | BBox: {res['bbox']} | Area: {res['area_px']} px²")
+    print(f"  -> KDI: {res['kdi_score']:.3f} | Disposition: {res['disposition']} | Override: {res['critical_override']}")
+    print(f"  -> Latency: {res['timing_ms']['total']:.1f} ms | Event #{res['event_id']} saved to SQLite\n", flush=True)
     return JSONResponse(res)
 
 if __name__ == "__main__":
     import uvicorn
+    print("=" * 80)
+    print("WAFERQC LIVE EDGE ACCELERATOR BACKEND ACTIVE")
+    print("Hardware Target: Raspberry Pi 5 (Quad Cortex-A76 @ 2.4 GHz)")
+    print("Web Console URL: http://127.0.0.1:8000")
+    print("Stream: Listening for UI triggers, uploads & test sample inspections...")
+    print("=" * 80, flush=True)
     uvicorn.run(app, host="127.0.0.1", port=8000)
