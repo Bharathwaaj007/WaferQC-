@@ -1,6 +1,10 @@
 # WaferQC: On-Device Semiconductor SEM Defect Inspection & LLM Advisory
 
 **Competition:** Bharat AI-SoC Student Challenge 2026–27  
+**Track:** Track 1: FPGA & SoC Track, Edge-AI Hardware Design & Optimization  
+**Team Leader:** Akash B – IV ECE  
+**Team Members:** Bharathwaaj R – III ECE, Sanjay K A – III ECE  
+**College Name:** PSG Institute Of Technology And Applied Research  
 **Target Hardware:** Raspberry Pi 5 (8GB RAM, Broadcom BCM2712 Quad Cortex-A76 @ 2.4 GHz)  
 **Location:** `E:\WaferQC`  
 **License:** Apache 2.0 (Code) / CC-BY-4.0 (Documentation & Benchmark Artifacts)
