@@ -37,17 +37,18 @@
 
 ---
 
-### [0:50 – 1:30] Segment 3: Live Pipeline Demonstration
+### [0:50 – 1:30] Segment 3: Live Pipeline & Cleanroom Console Demonstration
 - **Visual:**
-  - Screen recording of PowerShell running `python run_demo.py --count 12 --delay 0.1` OR the browser opening `outputs/demo_report.html` and `dashboard.py`.
-  - Point mouse to:
-    - Raw SEM crops being de-artifacted.
-    - Bounding boxes pinpointing bridges and scratches.
-    - KDI severity scores updating instantly.
-    - Instant disposition: `SCRAP`, `REWORK`, or `PASS`.
-    - Llama 3.2 1B failure analysis narrative citing retrieved Fab SOP IDs (e.g., `SOP-LIT-01 Focus Drift`).
+  - Screen recording of the live operator console at `http://127.0.0.1:8000` (or running `python dashboard.py`).
+  - Demonstrate the exact live workflow:
+    1. Click **Browse SEM Scan** or **Load Test Sample** (e.g. Bridge or Scratch).
+    2. Click **RUN PIPELINE** (teal button) — see the instant 43.6 ms inference.
+    3. Toggle multi-spectral diagnostic views: **OVERLAY** (exact defect bounding box), **DEFECT HEATMAP** (Jet anomaly field), and **SOBEL GRADIENT** (Turbo edge texture).
+    4. Point to the **KDI Severity Bar** updating with instant `SCRAP` disposition.
+    5. Point to the **Failure Analysis Advisory** citing grounded SOP (e.g. `SOP-LIT-04 Photolithography Bridging Review`) with root cause and corrective actions.
+    6. Point to the **Tamper-Evident SHA-256 Audit Record** (Event # logged in SQLite).
 - **Voiceover Script:**
-  > *"Here is the live pipeline in action. As raw SEM crops stream through the vision engine, our model classifies conductive bridges with 100% confidence, immediately flagging a critical short-circuit hazard. Defect area is extracted morphologically, and the KDI engine computes an instant SCRAP disposition in under 45 milliseconds on CPU. Concurrently, the advisory worker retrieves fab Standard Operating Procedures, prompts Llama 3.2 1B, and verifies the response through five deterministic guardrails—guaranteeing factual consistency with zero hallucinations."*
+  > *"Here is the live cleanroom console in action at 127.0.0.1:8000. As an operator loads an SEM crop and clicks RUN PIPELINE, our quantized edge vision model classifies the conductive bridge with 99.5% confidence in just 43.6 milliseconds on CPU. Defect area is extracted morphologically, and the KDI engine computes an instant SCRAP disposition. Operators can toggle multi-spectral diagnostic modes—from exact rounded bounding boxes to anomaly heatmaps and Sobel edge gradients. Concurrently, the advisory worker retrieves fab SOP-LIT-04, prompts Llama 3.2 1B, and verifies the response through five deterministic guardrails—guaranteeing factual consistency with zero hallucinations, while logging an immutable SHA-256 hash in SQLite."*
 
 ---
 
