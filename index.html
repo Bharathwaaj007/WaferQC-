@@ -503,8 +503,8 @@
           <h2 class="font-bold text-base text-white">Active Cleanroom Standard Operating Procedures (SOP Knowledge Base)</h2>
           <p class="text-xs text-slate-400">15 industry-aligned engineering SOPs indexed via BM25 retrieval for zero-hallucination failure advisory.</p>
         </div>
-        <span class="px-3 py-1 text-xs font-mono rounded-lg border border-tealAccent/30 text-tealAccent bg-tealAccent/10">
-          15 SOPs Loaded
+        <span id="badge-sop-count" class="px-3 py-1 text-xs font-mono rounded-lg border border-tealAccent/30 text-tealAccent bg-tealAccent/10">
+          17 SOPs Loaded
         </span>
       </div>
 
@@ -925,24 +925,30 @@
         // SOP Citation
         const sopEl = document.getElementById('text-adv-sop');
         if (sopEl) {
+          const titles = adv.cited_sop_titles || [];
           const sids = adv.cited_sop_ids || adv.cited_sops || [];
-          if (sids.length > 0) {
+          if (titles.length > 0) {
+            sopEl.textContent = titles.join(' | ');
+          } else if (sids.length > 0) {
             sopEl.textContent = sids.join(', ');
           } else {
-            sopEl.textContent = (disp === 'PASS') ? 'SOP-NOM-01: Nominal Process Verification' : 'Fab Standard Operating Procedure';
+            sopEl.textContent = (disp === 'PASS') ? 'SOP-NOM-01: Nominal Wafer Topography Inspection' : 'Fab Standard Operating Procedure';
           }
+          sopEl.className = 'font-mono text-goldAccent font-semibold text-sm';
         }
 
         // Root Cause Hypothesis
         const rcEl = document.getElementById('text-adv-root-cause');
         if (rcEl) {
           rcEl.textContent = adv.root_cause_hypothesis || adv.root_cause || adv.analysis || 'Analysis verified against baseline fab specification.';
+          rcEl.className = 'text-slate-200 mt-0.5 leading-relaxed';
         }
 
         // Corrective Actions List
         const listEl = document.getElementById('list-adv-actions');
         if (listEl) {
           listEl.innerHTML = '';
+          listEl.className = 'list-disc list-inside text-slate-200 space-y-1 mt-0.5';
           if (Array.isArray(adv.corrective_actions) && adv.corrective_actions.length > 0) {
             adv.corrective_actions.forEach(function(act) {
               const li = document.createElement('li');
@@ -950,6 +956,11 @@
               listEl.appendChild(li);
             });
           } else if (adv.recommended_action) {
+            if (adv.analysis) {
+              const li0 = document.createElement('li');
+              li0.textContent = adv.analysis;
+              listEl.appendChild(li0);
+            }
             const li1 = document.createElement('li');
             li1.textContent = adv.recommended_action;
             listEl.appendChild(li1);
@@ -1062,21 +1073,27 @@
       try {
         var res = await fetch('/api/sops');
         var sops = await res.json();
+        var badge = document.getElementById('badge-sop-count');
+        if (badge) badge.textContent = sops.length + ' SOPs Loaded';
         var container = document.getElementById('sop-cards-container');
         if (!container) return;
         container.innerHTML = '';
         sops.forEach(function(s) {
           var card = document.createElement('div');
           card.className = 'glass-card p-4 space-y-2';
+          var causes = Array.isArray(s.root_causes) ? s.root_causes[0] : (s.summary || '');
+          var actions = Array.isArray(s.corrective_actions) ? s.corrective_actions[0] : '';
+          var triggers = Array.isArray(s.related_defect_classes) ? s.related_defect_classes.join(', ').toUpperCase() : (s.trigger_defect || 'DEFECT');
           card.innerHTML =
             '<div class="flex items-center justify-between border-b border-white/10 pb-2">' +
               '<span class="font-mono text-xs font-bold text-tealAccent">' + (s.sop_id || 'SOP') + '</span>' +
               '<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">' + (s.process_area || 'Fab') + '</span>' +
             '</div>' +
             '<h4 class="font-semibold text-sm text-white">' + (s.title || 'Standard Operating Procedure') + '</h4>' +
-            '<p class="text-xs text-slate-300 leading-relaxed">' + (s.summary || '') + '</p>' +
+            '<p class="text-xs text-slate-300 leading-relaxed">' + causes + '</p>' +
+            (actions ? '<p class="text-[11px] text-tealAccent/90 leading-relaxed">Action: ' + actions + '</p>' : '') +
             '<div class="pt-2 text-[11px] font-mono text-slate-400">' +
-              'Trigger: <span class="text-goldAccent">' + (s.trigger_defect || 'Defect') + '</span> (Severity \u2265 ' + (s.severity_threshold || '0.5') + ')' +
+              'Related Classes: <span class="text-goldAccent">' + triggers + '</span>' +
             '</div>';
           container.appendChild(card);
         });

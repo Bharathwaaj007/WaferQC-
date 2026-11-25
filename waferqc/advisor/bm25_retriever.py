@@ -60,6 +60,22 @@ class BM25SOPRetriever:
         return results
 
     def retrieve_for_defect(self, class_label: str, severity: str, area_px: int = 0, top_k: int = 3) -> List[Dict[str, Any]]:
-        """Formulate domain query and retrieve relevant SOPs."""
+        """Formulate domain query and retrieve relevant SOPs, prioritizing exact defect class metadata match."""
         query = f"{class_label} defect {severity} area {area_px} px"
-        return self.retrieve(query, top_k=top_k)
+        query_tokens = tokenize(query)
+        scores = self.bm25.get_scores(query_tokens) if query_tokens else [0.0] * len(self.sops)
+
+        exact_matches = []
+        other_matches = []
+        for idx, sop in enumerate(self.sops):
+            sop_copy = dict(sop)
+            sop_copy["bm25_score"] = float(scores[idx])
+            rel_classes = [c.lower() for c in sop.get("related_defect_classes", [])]
+            if class_label.lower() in rel_classes:
+                exact_matches.append(sop_copy)
+            else:
+                other_matches.append(sop_copy)
+
+        exact_matches.sort(key=lambda s: s["bm25_score"], reverse=True)
+        other_matches.sort(key=lambda s: s["bm25_score"], reverse=True)
+        return (exact_matches + other_matches)[:top_k]
